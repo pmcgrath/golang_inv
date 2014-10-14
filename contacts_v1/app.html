@@ -1,0 +1,182 @@
+<html>
+  <head>
+    <title>Contacts</title>
+    <script type="text/javascript">
+      var app = function() {
+        var app = {
+          userName: "pmcgrath",
+          contacts: [],
+          urls: {
+            logIn: "/api/v1/logIn",
+            contactsPrefix: "/api/v1/contacts/"
+          }
+        };
+
+        app.getContactsUrl = function() {
+          return app.urls.contactsPrefix + app.userName;
+        };
+
+        app.indexOfContact = function(id) {
+          // Could not use indexOf in chrome, see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/findIndex#Browser_compatibility
+          for (var index = 0; index < app.contacts.length; index++) {
+            if (app.contacts[index].Id == id) {
+              return index;
+            }
+          }
+          
+          return -1;
+        };
+
+        app.start = function() {
+          // See http://www.html5rocks.com/en/tutorials/es7/observe/
+          Array.observe(app.contacts, function(changes) {
+            app.repopulateContactListSection();
+          });
+
+          var loggedIn = (app.userName != "");
+          
+          document.getElementById("welcomeSection").style.visibility = loggedIn ? "visible": "hidden";
+          document.getElementById("logInSection").style.visibility = loggedIn ? "hidden": "visible";
+          document.getElementById("logOutLink").onclick = app.logOut;
+          document.getElementById("logInForm").onsubmit = function() { app.makeLogInAttempt(); return false; }
+          
+          if (loggedIn) { app.acquireContactList(); }
+        };
+
+        app.reset = function() {
+          app.userName = "";
+          app.contacts.length = 0;
+
+          document.getElementById("welcomeSection").style.visibility = "hidden";
+          document.getElementById("logInSection").style.visibility = "visible";
+          document.getElementById("submitLogIn").disabled = false;
+        };
+
+        app.makeLogInAttempt = function() {
+          document.getElementById("submitLogIn").disabled = true;
+
+	  app.makeApiCall(
+            app.Urls.logIn,
+            "POST",
+            {
+              UserName: document.getElementById("userName").value,
+              Password: document.getElementById("password").value
+            },
+            function(response) {
+              app.userName = document.getElementById("userName").value;
+
+              document.getElementById("userName").value = "";
+              document.getElementById("password").value = "";
+              document.getElementById("logInSection").style.visibility = "hidden";
+
+              document.getElementById("welcomeUserName").innerText = app.userName;
+              document.getElementById("welcomeSection").style.visibility = "visible";
+
+              app.acquireContactList(); 
+            });
+        };
+
+        app.logOut = function() {
+          app.reset();
+        };
+
+        app.editContact = function(id) {
+          var index = app.indexOfContact(id);
+          if (index != -1) {
+            alert("Editing -> " + app.contacts[index]);
+          }
+        };
+
+        app.removeContact = function(id) {
+          var index = app.indexOfContact(id);
+          if (index != -1) {
+            
+            // Make api call
+            app.contacts.splice(index, 1);
+          }
+        };
+
+        app.acquireContactList = function() {
+	  app.makeApiCall(
+            app.getContactsUrl(),
+            "GET",
+            null,
+            function(response) {
+              var contacts = JSON.parse(response);
+              app.contacts.length = 0;
+              contacts.forEach(function(contact) { app.contacts.push(contacts); });
+            });
+        };
+
+        app.repopulateContactListSection = function(){
+          containerList = document.getElementById("contactListSection");
+          containerList.innerHTML = "";
+          app.contacts.forEach(function(contact){ 
+            var template = document.querySelector("#contactListItemTemplate");
+            var content = document.importNode(template.content, true);
+            content.querySelector(".contactListItem").setAttribute("id", contact.Id);
+            content.querySelector(".contactListItemFirstName").innerText = contact.FirstName;
+            content.querySelector(".contactListItemLastName").innerText = contact.LastName;
+            content.querySelector(".contactListItemEdit").onclick = function() { app.editContact(contact.Id); }
+            content.querySelector(".contactListItemDeletion").onclick = function() { app.removeContact(contact.Id); }
+            containerList.appendChild(content);
+          });
+        };
+
+        app.makeApiCall = function(url, method, data, completionFunc) {
+          var xhr = new XMLHttpRequest();
+          xhr.onreadystatechange = function() {
+            if (xhr.readyState == 4) {
+              if(xhr.status == 200) {
+		completionFunc(xhr.response);
+              }
+              else if(xhr.status == 401) {
+                alert('Not authorised !')
+              }
+            }
+          };
+
+	  var dataAsJson = null;
+	  if (data != null) {
+            dataAsJson = JSON.stringify(data);
+	  }
+
+          xhr.open(method, url, true);
+          xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.send(dataAsJson);
+        };
+
+        return app;
+      }();
+
+      window.addEventListener('DOMContentLoaded', function() { app.start(); });	// Equivalent of jquery document.ready on chrome and IE9+
+     </script>
+  </head>
+  <body>
+    <h1>Contacts</h1>
+    <div id="welcomeSection">
+      Welcome <div id="welcomeUserName"></div>
+      <a href="#" id="logOutLink">Log out</a>
+    </div>
+    <div id="logInSection">
+      LogIn info
+      <form id="logInForm">
+        <label>User name</label><input type="text" id="userName"/><br/>
+        <label>Password</label><input type="text" id="password"/><br/>
+        <input type="submit" id="submitLogIn" />
+      </form>
+    </div>
+    <!-- See http://www.html5rocks.com/en/tutorials/webcomponents/template/ -->
+    <template id="contactListItemTemplate">
+      <div class="contactListItem">
+        <label class="contactListItemFirstName"></label>
+        <label class="contactListItemLastName"></label>
+	<a href="#" class="contactListItemEdit">E</a>
+	<a href="#" class="contactListItemDeletion">x</a>
+      </div>
+    </template>
+    <div id="contactListSection">
+    </div>
+  </body>
+</html>
+
