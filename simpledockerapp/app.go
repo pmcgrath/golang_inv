@@ -37,6 +37,7 @@ func main() {
 	log.Println("STARTING")
 
 	config := getConfig()
+	log.Printf("USING Config %#v\n", config)
 
 	quitChannel := make(chan struct{})
 	var waitGroup sync.WaitGroup
