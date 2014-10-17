@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
 	"sync"
 	"time"
@@ -34,7 +34,6 @@ func getConfig() config {
 func runWorker(identifier string, sleepInterval time.Duration, quitChannel chan struct{}, waitGroup *sync.WaitGroup) {
 	defer waitGroup.Done()
 	defer log.Printf("%s Exiting\n", identifier)
-
 	log.Printf("%s Starting\n", identifier)
 
 	tickerChannel := time.NewTicker(sleepInterval)
@@ -53,7 +52,6 @@ func runWorker(identifier string, sleepInterval time.Duration, quitChannel chan 
 
 func main() {
 	defer log.Println("DONE")
-
 	log.Println("STARTING")
 
 	config := getConfig()
@@ -68,8 +66,9 @@ func main() {
 		go runWorker(workerIdentifier, config.SleepInterval, quitChannel, &waitGroup)
 	}
 
-	var input string
-	fmt.Scanln(&input)
+	signalChannel := make(chan os.Signal, 10)
+	signal.Notify(signalChannel, os.Interrupt)
+	<-signalChannel
 
 	close(quitChannel)
 	waitGroup.Wait()
