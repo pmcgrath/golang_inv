@@ -51,11 +51,11 @@ func runWorker(identifier string, sleepInterval time.Duration, quitChannel chan 
 }
 
 func main() {
-	defer log.Println("DONE")
-	log.Println("STARTING")
+	defer log.Println("main Done")
+	log.Println("main Starting")
 
 	config := getConfig()
-	log.Printf("USING Config %#v\n", config)
+	log.Printf("main Using config %#v\n", config)
 
 	quitChannel := make(chan struct{})
 	var waitGroup sync.WaitGroup
@@ -70,6 +70,9 @@ func main() {
 	signal.Notify(signalChannel, os.Interrupt)
 	<-signalChannel
 
+	log.Println("main About to quit")
 	close(quitChannel)
+
+	log.Println("main Waiting on completion of the workers")
 	waitGroup.Wait()
 }
