@@ -10,9 +10,25 @@ import (
 	"time"
 )
 
+type config struct {
+	SleepInterval time.Duration
+	Workers       int
+}
+
 func init() {
 	hostname, _ := os.Hostname()
 	log.SetPrefix(hostname + " ")
+}
+
+func getConfig() config {
+	var workers = flag.Int("workers", 1, "Number of workers")
+	var sleepIntervalInSeconds = flag.Int("sleep", 1, "Sleep interval in seconds")
+	flag.Parse()
+
+	return config{
+		Workers:       *workers,
+		SleepInterval: time.Duration(int64(*sleepIntervalInSeconds)) * time.Second,
+	}
 }
 
 func main() {
@@ -20,18 +36,15 @@ func main() {
 
 	log.Println("STARTING")
 
-	var workers = flag.Int("workers", 1, "Number of workers")
-	var sleepIntervalInSeconds = flag.Int("sleep", 1, "Sleep interval in seconds")
-	flag.Parse()
+	config := getConfig()
 
-	sleepInterval := time.Duration(int64(*sleepIntervalInSeconds)) * time.Second
 	quitChannel := make(chan struct{})
 	var waitGroup sync.WaitGroup
 
-	waitGroup.Add(*workers)
-	for worker := 1; worker <= *workers; worker++ {
+	waitGroup.Add(config.Workers)
+	for worker := 1; worker <= config.Workers; worker++ {
 		workerIdentifier := "w" + strconv.Itoa(worker)
-		go runWorker(workerIdentifier, sleepInterval, quitChannel, &waitGroup)
+		go runWorker(workerIdentifier, config.SleepInterval, quitChannel, &waitGroup)
 	}
 
 	var input string
