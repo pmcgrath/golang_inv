@@ -31,6 +31,26 @@ func getConfig() config {
 	}
 }
 
+func runWorker(identifier string, sleepInterval time.Duration, quitChannel chan struct{}, waitGroup *sync.WaitGroup) {
+	defer waitGroup.Done()
+	defer log.Printf("%s Exiting\n", identifier)
+
+	log.Printf("%s Starting\n", identifier)
+
+	tickerChannel := time.NewTicker(sleepInterval)
+
+	for {
+		select {
+		case <-tickerChannel.C:
+			log.Printf("%s Working\n", identifier)
+		case <-quitChannel:
+			log.Printf("%s Quiting\n", identifier)
+			tickerChannel.Stop()
+			return
+		}
+	}
+}
+
 func main() {
 	defer log.Println("DONE")
 
@@ -53,24 +73,4 @@ func main() {
 
 	close(quitChannel)
 	waitGroup.Wait()
-}
-
-func runWorker(identifier string, sleepInterval time.Duration, quitChannel chan struct{}, waitGroup *sync.WaitGroup) {
-	defer waitGroup.Done()
-	defer log.Printf("%s Exiting\n", identifier)
-
-	log.Printf("%s Starting\n", identifier)
-
-	tickerChannel := time.NewTicker(sleepInterval)
-
-	for {
-		select {
-		case <-tickerChannel.C:
-			log.Printf("%s Working\n", identifier)
-		case <-quitChannel:
-			log.Printf("%s Quiting\n", identifier)
-			tickerChannel.Stop()
-			return
-		}
-	}
 }
