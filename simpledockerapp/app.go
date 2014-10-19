@@ -31,7 +31,7 @@ func getConfig() config {
 	}
 }
 
-func runWorker(identifier string, sleepInterval time.Duration, quitChannel chan struct{}, waitGroup *sync.WaitGroup) {
+func runWorker(identifier string, sleepInterval time.Duration, quitChannel <-chan struct{}, waitGroup *sync.WaitGroup) {
 	defer waitGroup.Done()
 	defer log.Printf("%s Exiting\n", identifier)
 	log.Printf("%s Starting\n", identifier)
