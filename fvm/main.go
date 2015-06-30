@@ -44,7 +44,7 @@ func init() {
 	initAction := flag.String("action", "status", "Action to run")
 	//initRootDirectoryPath := flag.String("rootDirectoryPath", "/home/pmcgrath/go/src/github.com/pmcgrath", "Root directory path")
 	initRootDirectoryPath := flag.String("rootDirectoryPath", "/tmp/gitinv", "Root directory path")
-	initFileName := flag.String("fileName", "", "File name")
+	initFileName := flag.String("fileName", "db.go", "File name")
 	flag.Parse()
 
 	action = *initAction
@@ -120,16 +120,26 @@ func execGitCmdOnMultipleRepos(repoPaths []string, command string, args ...strin
 	return res
 }
 
-func getBranch(repoPaths []string) gitCmdResults {
+func execBranch(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(repoPaths, "symbolic-ref", "--short", "-q", "HEAD")
 }
 
-func fetch(repoPaths []string) gitCmdResults {
+func execFetch(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(repoPaths, "fetch", "origin")
 }
 
-func getStatus(repoPaths []string) gitCmdResults {
+func execPull(repoPaths []string) gitCmdResults {
+	return execGitCmdOnMultipleRepos(repoPaths, "pull", "origin")
+}
+
+func execStatus(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(repoPaths, "status", "--porcelain")
+}
+
+func createGetFileHashFn(fileName string) func([]string) gitCmdResults {
+	return func(repoPaths []string) gitCmdResults {
+		return execGitCmdOnMultipleRepos(repoPaths, "hash-object", fileName)
+	}
 }
 
 func display(results gitCmdResults) {
@@ -148,7 +158,7 @@ func display(results gitCmdResults) {
 func filterGitReposOnly(directoryPaths []string) []string {
 	var res []string
 
-	results := getBranch(directoryPaths)
+	results := execBranch(directoryPaths)
 	for _, result := range results {
 		if result.Error == nil {
 			res = append(res, result.RepoPath)
@@ -159,21 +169,26 @@ func filterGitReposOnly(directoryPaths []string) []string {
 }
 
 func timeAndDisplay(context string, repoPaths []string, opFunc func([]string) gitCmdResults) {
+	fmt.Printf("\n\n*** %s Starting\n", context)
 	start := time.Now()
 	display(opFunc(repoPaths))
 	elapsed := time.Since(start)
-	fmt.Printf("*** %s elapsed is %s\n", context, elapsed)
+	fmt.Printf("*** %s Completed in %s\n", context, elapsed)
 }
 
 func main() {
+	fmt.Println("Context\n=======\n")
 	fmt.Println(action)
 	fmt.Println(rootDirectoryPath)
 	fmt.Println(fileName)
+	fmt.Println("=======\n")
 
 	directoryPaths, _ := getAllSubDirs(rootDirectoryPath)
 	repoPaths := filterGitReposOnly(directoryPaths)
 
-	timeAndDisplay("Branch", repoPaths, getBranch)
-	timeAndDisplay("Fetch", repoPaths, fetch)
-	timeAndDisplay("Status", repoPaths, getStatus)
+	timeAndDisplay("Branch", repoPaths, execBranch)
+	timeAndDisplay("Status", repoPaths, execStatus)
+	timeAndDisplay("Fetch", repoPaths, execFetch)
+	timeAndDisplay("Pull", repoPaths, execPull)
+	timeAndDisplay("FileHash", repoPaths, createGetFileHashFn(fileName))
 }
