@@ -1,6 +1,6 @@
 package main
 
-type repoDetail struct {
+type repositoryDetail struct {
 	ParentName   string
 	Name         string
 	ProtocolUrls map[string]string

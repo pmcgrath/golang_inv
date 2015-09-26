@@ -16,8 +16,7 @@ func main() {
 
 	commandFunc, ok := commands[command]
 	if !ok {
-		log.Printf("Unknown command [%s]\n", command)
-		return
+		log.Fatalf("Unknown command [%s]\n", command)
 	}
 
 	if err := commandFunc(os.Args[2:]); err != nil {

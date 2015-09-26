@@ -16,9 +16,48 @@ const (
 
 func getCommandMap() map[string]func([]string) error {
 	return map[string]func([]string) error{
+		"github-list":       githubList,
 		"stash-list":        stashList,
 		"stash-multi-clone": stashMultiClone,
 	}
+}
+
+func githubList(args []string) error {
+	log.Println("About to run [github-list] command")
+
+	currentUserName, err := getCurrentUserName()
+	if err != nil {
+		return err
+	}
+
+	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
+	url := cmdFlags.String("url", "https://api.github.com", "Github api url - prefix")
+	userName := cmdFlags.String("username", currentUserName, "Github username - if not supplied will be the current user's name")
+	password := cmdFlags.String("password", os.Getenv(envVarKeyPassword), "Github password - if not supplied will be try to use an environment variable")
+	if err := cmdFlags.Parse(args); err != nil {
+		return err
+	}
+
+	log.Printf("\turl = %s\n", *url)
+	log.Printf("\tuserName = %s\n", *userName)
+	log.Printf("\tpassword = %s\n", *password)
+
+	connAttrs := connectionAttributes{
+		Url:        *url,
+		Username:   *userName,
+		Password:   *password,
+		ParentName: *userName,
+	}
+
+	repoDetails, err := getGithubRepoDetails(connAttrs)
+	if err != nil {
+		return err
+	}
+	for _, repo := range repoDetails {
+		log.Printf("-->%#v\n", repo)
+	}
+
+	return nil
 }
 
 func stashList(args []string) error {
@@ -55,7 +94,7 @@ func stashList(args []string) error {
 		return err
 	}
 	for _, repo := range repoDetails {
-		log.Printf("-->%#vs\n", repo.Name)
+		log.Printf("-->%#v\n", repo)
 	}
 
 	return nil

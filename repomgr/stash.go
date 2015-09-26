@@ -1,5 +1,6 @@
-/*	See https://developer.atlassian.com/static/rest/stash/3.11.2/stash-rest.html
- */
+/*
+	See https://developer.atlassian.com/static/rest/stash/3.11.2/stash-rest.html
+*/
 package main
 
 import (
@@ -9,7 +10,11 @@ import (
 	"time"
 )
 
-func getStashRepoDetails(connAttrs connectionAttributes) (result []repoDetail, err error) {
+type createStashPagedUrl func(int, int) string
+
+type processStashMap func(map[string]interface{}) error
+
+func getStashRepoDetails(connAttrs connectionAttributes) (repos []repositoryDetail, err error) {
 	var projectKeys []string
 	if connAttrs.ParentName == "" {
 		if projectKeys, err = getStashProjectKeys(connAttrs); err != nil {
@@ -25,7 +30,7 @@ func getStashRepoDetails(connAttrs connectionAttributes) (result []repoDetail, e
 			return nil, err
 		}
 
-		result = append(result, projectRepos...)
+		repos = append(repos, projectRepos...)
 	}
 
 	return
@@ -46,7 +51,7 @@ func getStashProjectKeys(connAttrs connectionAttributes) (projectKeys []string, 
 	return
 }
 
-func getStashProjectRepos(connAttrs connectionAttributes, projectKey string) (repos []repoDetail, err error) {
+func getStashProjectRepos(connAttrs connectionAttributes, projectKey string) (repos []repositoryDetail, err error) {
 	err = processStashPagedData(
 		connAttrs,
 		func(start, limit int) string {
@@ -61,7 +66,7 @@ func getStashProjectRepos(connAttrs connectionAttributes, projectKey string) (re
 				protocolUrls[cloneLink["name"]] = cloneLink["href"]
 			}
 
-			repo := repoDetail{
+			repo := repositoryDetail{
 				ParentName:   connAttrs.ParentName,
 				Name:         name,
 				ProtocolUrls: protocolUrls,
@@ -74,7 +79,7 @@ func getStashProjectRepos(connAttrs connectionAttributes, projectKey string) (re
 	return
 }
 
-func processStashPagedData(connAttrs connectionAttributes, createUrl func(int, int) string, processValue func(map[string]interface{}) error) (err error) {
+func processStashPagedData(connAttrs connectionAttributes, createUrl createStashPagedUrl, processValue processStashMap) (err error) {
 	timeoutInMS, start, limit := 15000, 0, 25
 
 	timeout := time.Duration(time.Duration(timeoutInMS) * time.Millisecond)
@@ -83,8 +88,8 @@ func processStashPagedData(connAttrs connectionAttributes, createUrl func(int, i
 	}
 
 	for {
-		stashUrl := createUrl(start, limit)
-		req, err := http.NewRequest("GET", stashUrl, nil)
+		url := createUrl(start, limit)
+		req, err := http.NewRequest("GET", url, nil)
 		req.SetBasicAuth(connAttrs.Username, connAttrs.Password)
 		req.Header.Set("Content-Type", "application/json")
 
@@ -95,25 +100,25 @@ func processStashPagedData(connAttrs connectionAttributes, createUrl func(int, i
 		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
-			return fmt.Errorf("Non 200 status code for [%s], code was %d", stashUrl, resp.StatusCode)
+			return fmt.Errorf("Non 200 status code for [%s], code was %d", url, resp.StatusCode)
 		}
 
-		var data struct {
+		var respData struct {
 			Size       int
 			IsLastPage bool
 			Values     []map[string]interface{}
 		}
-		if err = json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		if err = json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 			return err
 		}
 
-		for _, value := range data.Values {
-			if err = processValue(value); err != nil {
+		for _, respDataValue := range respData.Values {
+			if err = processValue(respDataValue); err != nil {
 				return err
 			}
 		}
 
-		if data.IsLastPage {
+		if respData.IsLastPage {
 			break
 		}
 
