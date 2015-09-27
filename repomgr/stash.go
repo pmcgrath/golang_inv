@@ -14,18 +14,26 @@ type createStashPagedUrl func(int, int) string
 
 type processStashMap func(map[string]interface{}) error
 
-func getStashRepoDetails(connAttrs connectionAttributes) (repos []repositoryDetail, err error) {
+type stash struct {
+	connAttrs connectionAttributes
+}
+
+func newStashProvider(connAttrs connectionAttributes) stash {
+	return stash{connAttrs: connAttrs}
+}
+
+func (p stash) getRepos(parentName string) (repos []repositoryDetail, err error) {
 	var projectKeys []string
-	if connAttrs.ParentName == "" {
-		if projectKeys, err = getStashProjectKeys(connAttrs); err != nil {
+	if parentName == "" {
+		if projectKeys, err = p.getProjectKeys(); err != nil {
 			return
 		}
 	} else {
-		projectKeys = append(projectKeys, connAttrs.ParentName)
+		projectKeys = append(projectKeys, parentName)
 	}
 
 	for _, projectKey := range projectKeys {
-		projectRepos, err := getStashProjectRepos(connAttrs, projectKey)
+		projectRepos, err := p.getProjectRepos(projectKey)
 		if err != nil {
 			return nil, err
 		}
@@ -36,11 +44,10 @@ func getStashRepoDetails(connAttrs connectionAttributes) (repos []repositoryDeta
 	return
 }
 
-func getStashProjectKeys(connAttrs connectionAttributes) (projectKeys []string, err error) {
-	err = processStashPagedData(
-		connAttrs,
+func (p stash) getProjectKeys() (projectKeys []string, err error) {
+	err = p.processPagedData(
 		func(start, limit int) string {
-			return fmt.Sprintf("%s/rest/api/1.0/projects?start=%d&limit=%d", connAttrs.Url, start, limit)
+			return fmt.Sprintf("%s/rest/api/1.0/projects?start=%d&limit=%d", p.connAttrs.Url, start, limit)
 		},
 		func(project map[string]interface{}) error {
 			projectKey := project["key"].(string)
@@ -51,23 +58,26 @@ func getStashProjectKeys(connAttrs connectionAttributes) (projectKeys []string, 
 	return
 }
 
-func getStashProjectRepos(connAttrs connectionAttributes, projectKey string) (repos []repositoryDetail, err error) {
-	err = processStashPagedData(
-		connAttrs,
+func (p stash) getProjectRepos(projectKey string) (repos []repositoryDetail, err error) {
+	err = p.processPagedData(
 		func(start, limit int) string {
-			return fmt.Sprintf("%s/rest/api/1.0/projects/%s/repos?start=%d&limit=%d", connAttrs.Url, projectKey, start, limit)
+			return fmt.Sprintf("%s/rest/api/1.0/projects/%s/repos?start=%d&limit=%d", p.connAttrs.Url, projectKey, start, limit)
 		},
 		func(repository map[string]interface{}) error {
 			name := repository["name"].(string)
 			links := repository["links"].(map[string]interface{})
-			cloneLinks := links["clone"].([]map[string]string)
+			cloneLinks := links["clone"].([]interface{})
+
 			protocolUrls := make(map[string]string)
 			for _, cloneLink := range cloneLinks {
-				protocolUrls[cloneLink["name"]] = cloneLink["href"]
+				cloneLinkMap := cloneLink.(map[string]interface{})
+				name := cloneLinkMap["name"].(string)
+				href := cloneLinkMap["href"].(string)
+				protocolUrls[name] = href
 			}
 
 			repo := repositoryDetail{
-				ParentName:   connAttrs.ParentName,
+				ParentName:   projectKey,
 				Name:         name,
 				ProtocolUrls: protocolUrls,
 			}
@@ -79,7 +89,7 @@ func getStashProjectRepos(connAttrs connectionAttributes, projectKey string) (re
 	return
 }
 
-func processStashPagedData(connAttrs connectionAttributes, createUrl createStashPagedUrl, processValue processStashMap) (err error) {
+func (p stash) processPagedData(createUrl createStashPagedUrl, processValue processStashMap) (err error) {
 	timeoutInMS, start, limit := 15000, 0, 25
 
 	timeout := time.Duration(time.Duration(timeoutInMS) * time.Millisecond)
@@ -90,7 +100,7 @@ func processStashPagedData(connAttrs connectionAttributes, createUrl createStash
 	for {
 		url := createUrl(start, limit)
 		req, err := http.NewRequest("GET", url, nil)
-		req.SetBasicAuth(connAttrs.Username, connAttrs.Password)
+		req.SetBasicAuth(p.connAttrs.Username, p.connAttrs.Password)
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := client.Do(req)

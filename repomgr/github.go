@@ -10,7 +10,15 @@ import (
 	"time"
 )
 
-func getGithubRepoDetails(connAttrs connectionAttributes) (repos []repositoryDetail, err error) {
+type gitHub struct {
+	connAttrs connectionAttributes
+}
+
+func newGitHubProvider(connAttrs connectionAttributes) gitHub {
+	return gitHub{connAttrs: connAttrs}
+}
+
+func (p gitHub) getRepos(parentName string) (repos []repositoryDetail, err error) {
 	timeoutInMS := 15000
 
 	timeout := time.Duration(time.Duration(timeoutInMS) * time.Millisecond)
@@ -18,9 +26,9 @@ func getGithubRepoDetails(connAttrs connectionAttributes) (repos []repositoryDet
 		Timeout: timeout,
 	}
 
-	url := fmt.Sprintf("%s/users/%s/repos", connAttrs.Url, connAttrs.ParentName)
+	url := fmt.Sprintf("%s/users/%s/repos", p.connAttrs.Url, parentName)
 	req, err := http.NewRequest("GET", url, nil)
-	//req.SetBasicAuth(connAttrs.Username, connAttrs.Password)
+	req.SetBasicAuth(p.connAttrs.Username, p.connAttrs.Password)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -40,7 +48,8 @@ func getGithubRepoDetails(connAttrs connectionAttributes) (repos []repositoryDet
 
 	for _, repoData := range respData {
 		repo := repositoryDetail{
-			Name: repoData["name"].(string),
+			ParentName: parentName,
+			Name:       repoData["name"].(string),
 			ProtocolUrls: map[string]string{
 				"https": repoData["clone_url"].(string),
 				"ssh":   repoData["ssh_url"].(string),

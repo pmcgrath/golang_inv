@@ -7,19 +7,19 @@ import (
 )
 
 func main() {
-	commands := getCommandMap()
+	commandFns := getCommandFns()
 
 	command := ""
 	if len(os.Args) > 1 {
 		command = strings.ToLower(os.Args[1])
 	}
 
-	commandFunc, ok := commands[command]
+	commandFn, ok := commandFns[command]
 	if !ok {
 		log.Fatalf("Unknown command [%s]\n", command)
 	}
 
-	if err := commandFunc(os.Args[2:]); err != nil {
+	if err := commandFn(os.Args[2:]); err != nil {
 		log.Fatal(err)
 	}
 }

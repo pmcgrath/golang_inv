@@ -4,32 +4,171 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"runtime"
 )
 
 var cannedResponses map[string][]byte
 
-func main() {
+func init() {
 	setCannedResponses()
+}
 
+func main() {
+	parseProjectsWithExplicitType()
+	parseProjectsWithGenericType()
+
+	parseProjectRepoitoriesWithExplicitType()
+	parseProjectRepoitoriesWithGenericType()
+
+	parseBothWithiCombinedType()
+}
+
+func parseProjectsWithExplicitType() {
+	// Examined the json and used golang data structures to match the json data
+	var data struct {
+		Size       int
+		IsLastPage bool
+		Values     []struct {
+			Name string
+			Link struct {
+				Url string
+				Rel string
+			}
+		}
+	}
+	decodeJson("projects", &data)
+
+	log.Println(getFuncName())
+	for _, value := range data.Values {
+		log.Printf("\tName: %s\tUrl: %s\n", value.Name, value.Link.Url)
+	}
+}
+
+func parseProjectsWithGenericType() {
+	// Here we defined a type for the parent object based on the json, we then use generic structures to get to the data
+	// Needed to use printf with "%#v" to decide what data structures to use
 	var data struct {
 		Size       int
 		IsLastPage bool
 		Values     []map[string]interface{}
 	}
-	rdr := bytes.NewBuffer(cannedResponses["projects"])
-	if err := json.NewDecoder(rdr).Decode(&data); err != nil {
-		log.Fatal(err)
-	}
+	decodeJson("projects", &data)
 
-	log.Printf("****data : %t\n", data.IsLastPage)
+	log.Printf("\n\n%s\n", getFuncName())
 	for _, value := range data.Values {
-		log.Printf("****Value : %#v\n", value)
-		processDictionary(value)
+		name := value["name"].(string)
+		link := value["link"].(map[string]interface{})
+		url := link["url"].(string)
+
+		log.Printf("\tName: %s\tUrl: %s\n", name, url)
 	}
 }
 
-func processDictionary(dict map[string]interface{}) {
-	log.Printf("\t-->%s\n", dict["name"].(string))
+func parseProjectRepoitoriesWithExplicitType() {
+	// Examined the json and used golang data structures to match the json data
+	var data struct {
+		Size       int
+		IsLastPage bool
+		Values     []struct {
+			Name  string
+			Links struct {
+				Clone []struct {
+					Href string
+					Name string
+				}
+			}
+		}
+	}
+	decodeJson("projectRepositories", &data)
+
+	log.Printf("\n\n%s\n", getFuncName())
+	for _, value := range data.Values {
+		log.Printf("\tName: %s\n", value.Name)
+		for _, clone := range value.Links.Clone {
+			log.Printf("\t\tName: %s Href: %s\n", clone.Name, clone.Href)
+		}
+	}
+}
+
+func parseProjectRepoitoriesWithGenericType() {
+	// Here we defined a type for the parent object based on the json, we then use generic structures to get to the data
+	// Needed to use printf with "%#v" to decide what data structures to use
+	var data struct {
+		Size       int
+		IsLastPage bool
+		Values     []map[string]interface{}
+	}
+	decodeJson("projectRepositories", &data)
+
+	log.Printf("\n\n%s\n", getFuncName())
+	for _, value := range data.Values {
+		name := value["name"].(string)
+		links := value["links"].(map[string]interface{})
+		clones := links["clone"].([]interface{})
+
+		log.Printf("\tName: %s\n", name)
+		for _, clone := range clones {
+			cloneMap := clone.(map[string]interface{})
+			name := cloneMap["name"].(string)
+			href := cloneMap["href"].(string)
+
+			log.Printf("\t\tName: %s Href: %s\n", name, href)
+		}
+	}
+}
+
+func parseBothWithiCombinedType() {
+	// Examined the json and used golang data structures to match the json data, since both have no conflicts we could union here
+	// The decode does not zero out the data so you can get data from a previous call, if no matching data in the subsequent json will remain in the dtaa structure
+	var data struct {
+		Size       int
+		IsLastPage bool
+		Values     []struct {
+			Name string
+			Link struct {
+				Url string
+				Rel string
+			}
+			Links struct {
+				Clone []struct {
+					Href string
+					Name string
+				}
+			}
+		}
+	}
+
+	log.Printf("\n\n%s\n", getFuncName())
+
+	decodeJson("projects", &data)
+	for _, value := range data.Values {
+		log.Printf("\tName: %s\tUrl: %s\n", value.Name, value.Link.Url)
+	}
+
+	decodeJson("projectRepositories", &data)
+	for _, value := range data.Values {
+		log.Printf("\tName: %s\n", value.Name)
+		for _, clone := range value.Links.Clone {
+			log.Printf("\t\tName: %s Href: %s\n", clone.Name, clone.Href)
+		}
+	}
+}
+
+func decodeJson(responseKey string, respData interface{}) {
+	buf := bytes.NewBuffer(cannedResponses[responseKey])
+	if err := json.NewDecoder(buf).Decode(respData); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func getFuncName() string {
+	// See 	http://stackoverflow.com/questions/10742749/get-name-of-function-using-google-gos-reflection
+	//	http://play.golang.org/p/teu5CnHoek
+	pc, _, _, ok := runtime.Caller(1)
+	if !ok {
+		return "unknown"
+	}
+	return runtime.FuncForPC(pc).Name()
 }
 
 func setCannedResponses() {
