@@ -1,5 +1,9 @@
 /*
 	See https://developer.atlassian.com/static/rest/stash/3.11.2/stash-rest.html
+
+	Can see the data we are working with using
+		curl -v -u "pmcgrath:PASSWORD" -H "Accept: application/json" https://stash/rest/api/1.0/projects?start=0&limit=2
+		curl -v -u "pmcgrath:PASSWORD" -H "Accept: application/json" https://stash/rest/api/1.0/projects/ser/repos?start=0&limit=20
 */
 package main
 
@@ -25,6 +29,7 @@ func newStashProvider(connAttrs connectionAttributes) stash {
 func (p stash) getRepos(parentName string) (repos []repositoryDetail, err error) {
 	var projectKeys []string
 	if parentName == "" {
+		logDebugln("About to get project keys")
 		if projectKeys, err = p.getProjectKeys(); err != nil {
 			return
 		}
@@ -33,6 +38,7 @@ func (p stash) getRepos(parentName string) (repos []repositoryDetail, err error)
 	}
 
 	for _, projectKey := range projectKeys {
+		logDebugf("About to get projects for project key [%s]\n", projectKey)
 		projectRepos, err := p.getProjectRepos(projectKey)
 		if err != nil {
 			return nil, err
@@ -64,6 +70,7 @@ func (p stash) getProjectRepos(projectKey string) (repos []repositoryDetail, err
 			return fmt.Sprintf("%s/rest/api/1.0/projects/%s/repos?start=%d&limit=%d", p.connAttrs.Url, projectKey, start, limit)
 		},
 		func(repository map[string]interface{}) error {
+			logDebugln("About to process project repo data")
 			name := repository["name"].(string)
 			links := repository["links"].(map[string]interface{})
 			cloneLinks := links["clone"].([]interface{})
@@ -101,8 +108,9 @@ func (p stash) processPagedData(createUrl createStashPagedUrl, processValue proc
 		url := createUrl(start, limit)
 		req, err := http.NewRequest("GET", url, nil)
 		req.SetBasicAuth(p.connAttrs.Username, p.connAttrs.Password)
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
 
+		logDebugf("About to make a http get on [%s]\n", url)
 		resp, err := client.Do(req)
 		if err != nil {
 			return err
@@ -113,6 +121,7 @@ func (p stash) processPagedData(createUrl createStashPagedUrl, processValue proc
 			return fmt.Errorf("Non 200 status code for [%s], code was %d", url, resp.StatusCode)
 		}
 
+		logDebugln("About to decode response data")
 		var respData struct {
 			Size       int
 			IsLastPage bool

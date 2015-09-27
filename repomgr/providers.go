@@ -21,6 +21,7 @@ func newProvider(providerName string, connAttrs connectionAttributes) (provider,
 		return nil, fmt.Errorf("Unknown SCM provider [%s]\n", providerName)
 	}
 
+	logDebugf("About to construct provider [%s]\n", providerName)
 	provider, err := newProviderFn(connAttrs)
 	if err != nil {
 		return nil, err
