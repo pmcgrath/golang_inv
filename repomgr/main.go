@@ -8,8 +8,14 @@ import (
 
 func main() {
 	//PENDING - investigate merging of streams - goroutines - while running concurrent shell outs for git
-	r := filterGitReposOnly([]string{"c:/repos/stash/ser/ted", "c:/repos/stash/ser/travelrepublic.adverts.service"})
-	log.Printf("Expect to see adverts svs here %#v", r)
+	dirs, _ := getAllSubDirectoryPaths("/home/pmcgrath/oss/github.com/pmcgrath")
+	for _, dir := range dirs {
+		log.Printf("D --> %s\n", dir)
+	}
+	repos := filterGitReposOnly(dirs)
+	for _, repo := range repos {
+		log.Printf("--> %s\n", repo)
+	}
 	return
 
 	commandFns := getCommandFns()

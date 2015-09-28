@@ -13,8 +13,10 @@ func TestFilterGitReposOnly(t *testing.T) {
 		Path           string
 		ExpectedResult bool
 	}{
-		{"c:/repos/stash/ser/ted", false},
-		{"c:/repos/stash/ser/travelrepublic.adverts.service", true},
+		{"/tmp/repos/ted", false},
+		{"/tmp/repos/travelrepublic.adverts.service", true},
+		//{"c:/repos/stash/ser/ted", false},
+		//{"c:/repos/stash/ser/travelrepublic.adverts.service", true},
 		//		{currentDirWhichIsAGitRepo, true},
 		//		{tempDirWhichIsNotAGitRepo, false},
 	} {

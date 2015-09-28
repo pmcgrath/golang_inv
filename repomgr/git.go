@@ -42,16 +42,19 @@ func execGitCmd(workingDirectoryPath string, args ...string) ([]string, error) {
 	cmdOutputBytes, err := cmd.CombinedOutput()
 	cmdOutputString := string(cmdOutputBytes)
 	if strings.TrimSpace(cmdOutputString) == "" {
+		fmt.Printf("**********!!!-1 %s : %d\n", workingDirectoryPath, len(cmdOutputString))
 		// No output (No error) or a raw error
 		return nil, err
 	}
 
 	if err != nil {
+		fmt.Printf("**********!!!-2 %s : ERROR != nil -> [%#v]\n", workingDirectoryPath, err)
 		// Use output as error
 		return nil, fmt.Errorf(cmdOutputString)
 	}
 
 	outputLines := strings.Split(cmdOutputString, "\n")
+	fmt.Printf("**********>> %s : %d\n", workingDirectoryPath, len(outputLines))
 
 	return outputLines, err
 }
