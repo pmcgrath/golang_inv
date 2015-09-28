@@ -7,6 +7,11 @@ import (
 )
 
 func main() {
+	//PENDING - investigate merging of streams - goroutines - while running concurrent shell outs for git
+	r := filterGitReposOnly([]string{"c:/repos/stash/ser/ted", "c:/repos/stash/ser/travelrepublic.adverts.service"})
+	log.Printf("Expect to see adverts svs here %#v", r)
+	return
+
 	commandFns := getCommandFns()
 
 	command := ""

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"sort"
 	"strings"
 	"sync"
@@ -31,12 +32,13 @@ func (r gitCmdResults) Swap(i, j int) {
 	r[i], r[j] = r[j], r[i]
 }
 
-func execGitCmd(repoPath string, args ...string) ([]string, error) {
-	if err := os.Chdir(repoPath); err != nil {
+func execGitCmd(workingDirectoryPath string, args ...string) ([]string, error) {
+	if err := os.Chdir(workingDirectoryPath); err != nil {
 		return nil, err
 	}
 
 	cmd := exec.Command("git", args...)
+	// PENDING - THIS WILL NOT WOEK IS COMBINING ACROSS goroutines
 	cmdOutputBytes, err := cmd.CombinedOutput()
 	cmdOutputString := string(cmdOutputBytes)
 	if strings.TrimSpace(cmdOutputString) == "" {
@@ -55,6 +57,7 @@ func execGitCmd(repoPath string, args ...string) ([]string, error) {
 }
 
 func execGitCmdOnMultipleRepos(repoPaths []string, command string, args ...string) gitCmdResults {
+	// This executes the same command on a bunch of already existing repos
 	repoCount := len(repoPaths)
 	resultsCh := make(chan gitCmdResult, repoCount)
 
@@ -81,29 +84,72 @@ func execGitCmdOnMultipleRepos(repoPaths []string, command string, args ...strin
 	return res
 }
 
-func execBranch(repoPaths []string) gitCmdResults {
+func execGitClone(rootDirectoryPath string, repoUrls []string, args ...string) gitCmdResults {
+	// This executes clone on each of the url's - assumes the repo is not already cloned
+	repoCount := len(repoUrls)
+	resultsCh := make(chan gitCmdResult, repoCount)
+
+	var wg sync.WaitGroup
+	for _, repoUrl := range repoUrls {
+		wg.Add(1)
+		go func(repoUrl string) {
+			defer wg.Done()
+
+			cmdArgs := append([]string{"clone", repoUrl}, args...)
+			cmdResult, err := execGitCmd(rootDirectoryPath, cmdArgs...)
+			resultsCh <- gitCmdResult{RepoPath: repoUrl, Command: "clone", Result: cmdResult, Error: err}
+		}(repoUrl)
+	}
+	wg.Wait()
+	close(resultsCh)
+
+	var res gitCmdResults
+	for result := range resultsCh {
+		res = append(res, result)
+	}
+
+	sort.Sort(res)
+	return res
+}
+
+func execGitBranch(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(repoPaths, "symbolic-ref", "--short", "-q", "HEAD")
 }
 
-func execFetch(repoPaths []string) gitCmdResults {
+func execGitFetch(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(repoPaths, "fetch", "origin")
 }
 
-func execPull(repoPaths []string) gitCmdResults {
+func execGitPull(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(repoPaths, "pull", "origin")
 }
 
-func execStatus(repoPaths []string) gitCmdResults {
+func execGitStatus(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(repoPaths, "status", "--porcelain")
 }
 
-func createGetFileHashFn(fileName string) func([]string) gitCmdResults {
-	return func(repoPaths []string) gitCmdResults {
-		return execGitCmdOnMultipleRepos(repoPaths, "hash-object", fileName)
-	}
+func getGitRepoNameFromUrl(repoUrl string) string {
+	_, repoDirectoryName := path.Split(repoUrl)
+	return strings.TrimSuffix(repoDirectoryName, ".git")
 }
 
-func display(results gitCmdResults) {
+/*
+	Should these go
+*/
+func filterGitReposOnly(directoryPaths []string) []string {
+	var res []string
+
+	results := execGitBranch(directoryPaths)
+	for _, result := range results {
+		if result.Error == nil {
+			res = append(res, result.RepoPath)
+		}
+	}
+
+	return res
+}
+
+func displayGitCmdResults(results gitCmdResults) {
 	for _, result := range results {
 		fmt.Printf("%s\n", result.RepoPath)
 		if result.Error != nil {
@@ -116,23 +162,10 @@ func display(results gitCmdResults) {
 	}
 }
 
-func filterGitReposOnly(directoryPaths []string) []string {
-	var res []string
-
-	results := execBranch(directoryPaths)
-	for _, result := range results {
-		if result.Error == nil {
-			res = append(res, result.RepoPath)
-		}
-	}
-
-	return res
-}
-
 func timeAndDisplay(context string, repoPaths []string, opFunc func([]string) gitCmdResults) {
 	fmt.Printf("\n\n*** %s Starting\n", context)
 	start := time.Now()
-	display(opFunc(repoPaths))
+	displayGitCmdResults(opFunc(repoPaths))
 	elapsed := time.Since(start)
 	fmt.Printf("*** %s Completed in %s\n", context, elapsed)
 }
@@ -148,12 +181,11 @@ func run() {
 	fmt.Println(fileName)
 	fmt.Println("=======\n")
 
-	directoryPaths, _ := getAllSubDirs(rootDirectoryPath)
+	directoryPaths, _ := getAllSubDirectoryPaths(rootDirectoryPath)
 	repoPaths := filterGitReposOnly(directoryPaths)
 
-	timeAndDisplay("Branch", repoPaths, execBranch)
-	timeAndDisplay("Status", repoPaths, execStatus)
-	timeAndDisplay("Fetch", repoPaths, execFetch)
-	timeAndDisplay("Pull", repoPaths, execPull)
-	timeAndDisplay("FileHash", repoPaths, createGetFileHashFn(fileName))
+	timeAndDisplay("Branch", repoPaths, execGitBranch)
+	timeAndDisplay("Status", repoPaths, execGitStatus)
+	timeAndDisplay("Fetch", repoPaths, execGitFetch)
+	timeAndDisplay("Pull", repoPaths, execGitPull)
 }

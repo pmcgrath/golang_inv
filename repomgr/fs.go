@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"os"
 	"path"
 	"runtime"
 )
@@ -16,7 +17,7 @@ func getDefaultProjectsDirectoryPath() string {
 	return "c:/repos"
 }
 
-func getAllSubDirs(directoryPath string) ([]string, error) {
+func getAllSubDirectoryPaths(directoryPath string) ([]string, error) {
 	var dirs []string
 
 	files, err := ioutil.ReadDir(directoryPath)
@@ -32,4 +33,9 @@ func getAllSubDirs(directoryPath string) ([]string, error) {
 	}
 
 	return dirs, nil
+}
+
+func testIfDirectoryExists(directoryPath string) bool {
+	_, err := os.Stat(directoryPath)
+	return err == nil
 }
