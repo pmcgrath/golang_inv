@@ -7,17 +7,6 @@ import (
 )
 
 func main() {
-	//PENDING - investigate merging of streams - goroutines - while running concurrent shell outs for git
-	dirs, _ := getAllSubDirectoryPaths("/home/pmcgrath/oss/github.com/pmcgrath")
-	for _, dir := range dirs {
-		log.Printf("D --> %s\n", dir)
-	}
-	repos := filterGitReposOnly(dirs)
-	for _, repo := range repos {
-		log.Printf("--> %s\n", repo)
-	}
-	return
-
 	commandFns := getCommandFns()
 
 	command := ""

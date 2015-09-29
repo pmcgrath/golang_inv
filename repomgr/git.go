@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"path"
 	"sort"
 	"strings"
@@ -14,7 +12,7 @@ import (
 type gitCmdResult struct {
 	RepoPath string
 	Command  string
-	Result   []string
+	Output   []string
 	Error    error
 }
 
@@ -32,47 +30,25 @@ func (r gitCmdResults) Swap(i, j int) {
 	r[i], r[j] = r[j], r[i]
 }
 
-func execGitCmd(workingDirectoryPath string, args ...string) ([]string, error) {
-	if err := os.Chdir(workingDirectoryPath); err != nil {
-		return nil, err
-	}
-
-	cmd := exec.Command("git", args...)
-	// PENDING - THIS WILL NOT WOEK IS COMBINING ACROSS goroutines
-	cmdOutputBytes, err := cmd.CombinedOutput()
-	cmdOutputString := string(cmdOutputBytes)
-	if strings.TrimSpace(cmdOutputString) == "" {
-		fmt.Printf("**********!!!-1 %s : %d\n", workingDirectoryPath, len(cmdOutputString))
-		// No output (No error) or a raw error
-		return nil, err
-	}
-
-	if err != nil {
-		fmt.Printf("**********!!!-2 %s : ERROR != nil -> [%#v]\n", workingDirectoryPath, err)
-		// Use output as error
-		return nil, fmt.Errorf(cmdOutputString)
-	}
-
-	outputLines := strings.Split(cmdOutputString, "\n")
-	fmt.Printf("**********>> %s : %d\n", workingDirectoryPath, len(outputLines))
-
-	return outputLines, err
-}
-
 func execGitCmdOnMultipleRepos(repoPaths []string, command string, args ...string) gitCmdResults {
 	// This executes the same command on a bunch of already existing repos
 	repoCount := len(repoPaths)
 	resultsCh := make(chan gitCmdResult, repoCount)
-
-	args = append([]string{command}, args...)
 
 	var wg sync.WaitGroup
 	for _, repoPath := range repoPaths {
 		wg.Add(1)
 		go func(repoPath string) {
 			defer wg.Done()
-			cmdResult, err := execGitCmd(repoPath, args...)
-			resultsCh <- gitCmdResult{RepoPath: repoPath, Command: command, Result: cmdResult, Error: err}
+
+			// Need to use --git-dir and --work-tree git args, was using a os.Chdir golang instruction but this was changing the working dir for the
+			// golang process and then trying to run a git command, but since we are using goroutines this is unpredictable, where a number of them
+			// can be changing the dir at the same time, could end up running a git command in a different directory, by using these git args, the
+			// process can control this for each repo. We are assuming the .git directory is a sub directory within the git repo which is the default
+			gitDir := path.Join(repoPath, ".git")
+			gitArgs := append([]string{"--git-dir", gitDir, "--work-tree", repoPath, command}, args...)
+			cmdOutput, err := execCmd("git", gitArgs...)
+			resultsCh <- gitCmdResult{RepoPath: repoPath, Command: command, Output: cmdOutput, Error: err}
 		}(repoPath)
 	}
 	wg.Wait()
@@ -99,8 +75,8 @@ func execGitClone(rootDirectoryPath string, repoUrls []string, args ...string) g
 			defer wg.Done()
 
 			cmdArgs := append([]string{"clone", repoUrl}, args...)
-			cmdResult, err := execGitCmd(rootDirectoryPath, cmdArgs...)
-			resultsCh <- gitCmdResult{RepoPath: repoUrl, Command: "clone", Result: cmdResult, Error: err}
+			cmdOutput, err := execCmd("git", cmdArgs...) // BROKE !!
+			resultsCh <- gitCmdResult{RepoPath: repoUrl, Command: "clone", Output: cmdOutput, Error: err}
 		}(repoUrl)
 	}
 	wg.Wait()
@@ -158,7 +134,7 @@ func displayGitCmdResults(results gitCmdResults) {
 		if result.Error != nil {
 			fmt.Printf("\x1b[31m%s\x1b[39;49m\n", result.Error)
 		}
-		for _, line := range result.Result {
+		for _, line := range result.Output {
 			fmt.Printf("\t%s\n", line)
 		}
 		fmt.Println()

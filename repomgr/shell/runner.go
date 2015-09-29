@@ -54,7 +54,7 @@ func execCmd(workingDirectoryPath string) ([]string, error) {
 		return nil, err
 	}
 
-	cmd := exec.Command("ls", "-al")
+	cmd := exec.Command("git", "status")
 	// PENDING - THIS WILL NOT WOEK IS COMBINING ACROSS goroutines
 	cmdOutputBytes, err := cmd.CombinedOutput()
 	cmdOutputString := string(cmdOutputBytes)
@@ -100,16 +100,19 @@ func execCmdOnMultipleDirs(directoryPaths []string) cmdResults {
 }
 
 func main() {
-	//directoryPaths, _ := getAllSubDirectoryPaths("/tmp")
+	directoryPaths, _ := getAllSubDirectoryPaths("/home/pmcgrath/oss/github.com/pmcgrath")
 	//directoryPaths := []string{"/tmp/does-not-exist", "/tmp/repos", "/tmp/.com.google.Chrome.XNuGDt/"}
-	directoryPaths := []string{"/tmp/.com.google.Chrome.XNuGDt/"}
+	//directoryPaths := []string{"/tmp/.com.google.Chrome.XNuGDt/"}
 	results := execCmdOnMultipleDirs(directoryPaths)
 
 	for _, result := range results {
-		fmt.Printf("%s\n", result.Path)
-		for _, entry := range result.Result {
-			fmt.Printf("%#v\n\n", entry)
+		fmt.Printf("%s", result.Path)
+		//for _, entry := range result.Result {
+		//	fmt.Printf("%#v\n\n", entry)
+		//}
+		if result.Error != nil {
+			fmt.Printf(" ERR found--> %#v\n\n", result.Error)
 		}
-		fmt.Printf("ERR found: %t --> %#v\n\n", result.Error != nil, result.Error)
+		fmt.Println()
 	}
 }
