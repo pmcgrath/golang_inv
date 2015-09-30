@@ -1,26 +1,23 @@
 package main
 
 import (
-	//	"os"
+	"os"
 	"testing"
 )
 
 func TestFilterGitReposOnly(t *testing.T) {
-	//	currentDirWhichIsAGitRepo, _ := os.Getwd()
-	//	tempDirWhichIsNotAGitRepo := os.TempDir()
+	currentDirWhichIsAGitRepo, _ := os.Getwd()
+	tempDirWhichIsNotAGitRepo := os.TempDir()
 
 	for _, testCase := range []struct {
 		Path           string
 		ExpectedResult bool
 	}{
-		{"/tmp/repos/ted", false},
-		{"/tmp/repos/travelrepublic.adverts.service", true},
-		//{"c:/repos/stash/ser/ted", false},
-		//{"c:/repos/stash/ser/travelrepublic.adverts.service", true},
-		//		{currentDirWhichIsAGitRepo, true},
-		//		{tempDirWhichIsNotAGitRepo, false},
+		{currentDirWhichIsAGitRepo, true},
+		{tempDirWhichIsNotAGitRepo, false},
 	} {
 		gitRepos := filterGitReposOnly([]string{testCase.Path})
+		t.Logf("***FOR [%s] gitRepos = %s\n", testCase.Path, gitRepos)
 		actualResult := len(gitRepos) == 1 && gitRepos[0] == testCase.Path
 		if actualResult != testCase.ExpectedResult {
 			t.Errorf("Unexpected result for [%s], expected %t but got %t", testCase.Path, testCase.ExpectedResult, actualResult)

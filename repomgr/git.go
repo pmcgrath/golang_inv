@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -64,6 +65,8 @@ func execGitCmdOnMultipleRepos(repoPaths []string, command string, args ...strin
 }
 
 func execGitClone(rootDirectoryPath string, repoUrls []string, args ...string) gitCmdResults {
+	os.Chdir(rootDirectoryPath)
+
 	// This executes clone on each of the url's - assumes the repo is not already cloned
 	repoCount := len(repoUrls)
 	resultsCh := make(chan gitCmdResult, repoCount)
@@ -120,6 +123,7 @@ func filterGitReposOnly(directoryPaths []string) []string {
 
 	results := execGitBranch(directoryPaths)
 	for _, result := range results {
+		fmt.Printf("************ RESULT: %#v       -> ERR: [%s]\n", result, result.Error)
 		if result.Error == nil {
 			res = append(res, result.RepoPath)
 		}

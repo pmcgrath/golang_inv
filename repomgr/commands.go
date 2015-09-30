@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"text/template"
 )
 
@@ -39,7 +40,7 @@ func clone(args []string) error {
 	providerName := cmdFlags.String("provider", "", "Provider - github, stash")
 	userName := cmdFlags.String("username", currentUserName, "Username - if not supplied will be the current user's name")
 	password := cmdFlags.String("password", os.Getenv(envVarNamePassword), "Password - if not supplied will be try to use the REPO_PASSWORD environment variable")
-	parentName := cmdFlags.String("parentName", "", "Parent name - github organisation\\user, stash project key")
+	parentName := cmdFlags.String("parentname", "", "Parent name - github organisation\\user, stash project key")
 	useSsh := cmdFlags.Bool("usessh", true, "Clone using ssh")
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
 	verbose := cmdFlags.Bool("verbose", false, "Verbose flag")
@@ -66,12 +67,20 @@ func clone(args []string) error {
 		return err
 	}
 
-	logDebugf("About to determine repos to clone, candidated count is %d\n", len(repos))
+	logDebugf("About to determine repos to clone, candidate count is %d\n", len(repos))
 	var repoUrls []string
 	for _, repo := range repos {
+		// PENDING - This needs finishing - https over http - what if neither available ?
 		repoUrl := repo.ProtocolUrls["http"]
 		if *useSsh {
 			repoUrl = repo.ProtocolUrls["ssh"]
+		} else {
+			// What about https
+			// Include password so we do not get prompted
+			// SECURITY !!!! - Over http and in logging messages
+			replace := fmt.Sprintf("http://%s@", *userName)
+			replaceWith := fmt.Sprintf("http://%s:%s@", *userName, *password)
+			repoUrl = strings.Replace(repoUrl, replace, replaceWith, -1)
 		}
 
 		repoDirectoryName := getGitRepoNameFromUrl(repoUrl)
@@ -216,13 +225,6 @@ func status(args []string) error {
 		return err
 	}
 	repoPaths := filterGitReposOnly(candidateRepoPaths)
-
-	for i, dp1 := range candidateRepoPaths {
-		log.Printf("Candidate %d is : %s\n", i, dp1)
-	}
-	for i, dp1 := range repoPaths {
-		log.Printf("Repo %d is : %s\n", i, dp1)
-	}
 
 	logDebugf("About to run status for repos, count is %d, out of candidate count %d\n", len(repoPaths), len(candidateRepoPaths))
 	if len(repoPaths) > 0 {
