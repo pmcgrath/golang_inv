@@ -80,14 +80,27 @@ func clone(args []string) error {
 	logDebugf("About to determine repos to clone, candidate count is %d\n", len(repos))
 	var repoUrls []string
 	for _, repo := range repos {
-		// PENDING - This needs finishing - https over http - what if neither available ?
-		repoUrl := repo.ProtocolUrls["http"]
+		repoUrl := ""
 		if *useSsh {
 			repoUrl = repo.ProtocolUrls["ssh"]
 		} else {
-			// What about https
-			// Include password so we do not get prompted
-			// SECURITY !!!! - Over http and in logging messages
+			securityMessage := `
+			// SECURITY !!!!
+			// 	Not sure I want to even support this
+			//	Username\password management
+			//		Don't want the remote to include the password which will be stored on disk
+			//		Don't want to have to support password prompts - not sure even if i could
+			//		Could use a credential helper - this app could act as one and feed the password back out ???
+			//			https://www.kernel.org/pub/software/scm/git/docs/git-credential-store.html
+			//			http://git-scm.com/docs/git-credential-cache
+			//			http://stackoverflow.com/questions/5343068/is-there-a-way-to-skip-password-typing-when-using-https-github
+			//	Http - password in logs
+			// 	Should be at least https
+			//	Would be good to store the username as part of the remote url, should this be optional
+`
+			log.Printf("Using http - your password is in the remote url on disk !!!\n\n", securityMessage)
+
+			repoUrl = repo.ProtocolUrls["http"]
 			replace := fmt.Sprintf("http://%s@", *userName)
 			replaceWith := fmt.Sprintf("http://%s:%s@", *userName, *password)
 			repoUrl = strings.Replace(repoUrl, replace, replaceWith, -1)
