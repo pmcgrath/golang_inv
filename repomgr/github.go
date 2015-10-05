@@ -14,14 +14,14 @@ import (
 )
 
 type gitHub struct {
-	connAttrs connectionAttributes
+	connAttrs providerConnectionAttributes
 }
 
-func newGitHubProvider(connAttrs connectionAttributes) gitHub {
+func newGitHubProvider(connAttrs providerConnectionAttributes) gitHub {
 	return gitHub{connAttrs: connAttrs}
 }
 
-func (p gitHub) getRepos(parentName string) (repos []repositoryDetail, err error) {
+func (p gitHub) getRepos(parentName string) (repos repositoryDetails, err error) {
 	timeoutInMS := 15000
 
 	timeout := time.Duration(time.Duration(timeoutInMS) * time.Millisecond)

@@ -19,14 +19,14 @@ type createStashPagedUrl func(int, int) string
 type processStashMap func(map[string]interface{}) error
 
 type stash struct {
-	connAttrs connectionAttributes
+	connAttrs providerConnectionAttributes
 }
 
-func newStashProvider(connAttrs connectionAttributes) stash {
+func newStashProvider(connAttrs providerConnectionAttributes) stash {
 	return stash{connAttrs: connAttrs}
 }
 
-func (p stash) getRepos(parentName string) (repos []repositoryDetail, err error) {
+func (p stash) getRepos(parentName string) (repos repositoryDetails, err error) {
 	var projectKeys []string
 	if parentName == "" {
 		logDebugln("About to get project keys")
@@ -64,7 +64,7 @@ func (p stash) getProjectKeys() (projectKeys []string, err error) {
 	return
 }
 
-func (p stash) getProjectRepos(projectKey string) (repos []repositoryDetail, err error) {
+func (p stash) getProjectRepos(projectKey string) (repos repositoryDetails, err error) {
 	err = p.processPagedData(
 		func(start, limit int) string {
 			return fmt.Sprintf("%s/rest/api/1.0/projects/%s/repos?start=%d&limit=%d", p.connAttrs.Url, projectKey, start, limit)

@@ -17,14 +17,35 @@ const (
 
 type commandFn func([]string) error
 
+type runGitCommandOnExistingReposFn func([]string) gitCmdResults
+
 func getCommandFns() map[string]commandFn {
 	return map[string]commandFn{
+		"branch": branch,
 		"clone":  clone,
 		"fetch":  fetch,
 		"list":   list,
 		"pull":   pull,
 		"status": status,
 	}
+}
+
+func branch(args []string) error {
+	log.Println("About to run [batch] command")
+
+	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
+	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
+	verbose := cmdFlags.Bool("verbose", false, "Verbose flag")
+	if err := cmdFlags.Parse(args); err != nil {
+		return err
+	}
+
+	isVerbose = *verbose
+
+	return runCmdOnExistingRepos(*projectsDirectoryPath,
+		func(repoPaths []string) gitCmdResults {
+			return execGitBranch(repoPaths)
+		})
 }
 
 func clone(args []string) error {
@@ -43,6 +64,7 @@ func clone(args []string) error {
 	parentName := cmdFlags.String("parentname", "", "Parent name - github organisation\\user, stash project key")
 	useSsh := cmdFlags.Bool("usessh", true, "Clone using ssh")
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
+	remoteName := cmdFlags.String("remotename", "upstream", "Projects directory path")
 	verbose := cmdFlags.Bool("verbose", false, "Verbose flag")
 	if err := cmdFlags.Parse(args); err != nil {
 		return err
@@ -50,19 +72,7 @@ func clone(args []string) error {
 
 	isVerbose = *verbose
 
-	logDebugf("About to instantiate provider [%s]\n", *providerName)
-	connAttrs := connectionAttributes{
-		Url:      *url,
-		Username: *userName,
-		Password: *password,
-	}
-	provider, err := newProvider(*providerName, connAttrs)
-	if err != nil {
-		return err
-	}
-
-	logDebugf("About to clone repos for provider [%s]\n", *providerName)
-	repos, err := provider.getRepos(*parentName)
+	repos, err := getProviderRepos(*providerName, *url, *userName, *password, *parentName)
 	if err != nil {
 		return err
 	}
@@ -94,7 +104,7 @@ func clone(args []string) error {
 
 	logDebugf("About to start cloning repos, count is %d\n", len(repoUrls))
 	if len(repoUrls) > 0 {
-		cmdResults := execGitClone(*projectsDirectoryPath, repoUrls)
+		cmdResults := execGitClone(*projectsDirectoryPath, repoUrls, *remoteName)
 		displayGitCmdResults(cmdResults)
 	}
 
@@ -106,6 +116,7 @@ func fetch(args []string) error {
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
+	remoteName := cmdFlags.String("remotename", "upstream", "Projects directory path")
 	verbose := cmdFlags.Bool("verbose", false, "Verbose flag")
 	if err := cmdFlags.Parse(args); err != nil {
 		return err
@@ -113,19 +124,10 @@ func fetch(args []string) error {
 
 	isVerbose = *verbose
 
-	candidateRepoPaths, err := getAllSubDirectoryPaths(*projectsDirectoryPath)
-	if err != nil {
-		return err
-	}
-	repoPaths := filterGitReposOnly(candidateRepoPaths)
-
-	logDebugf("About to start fetching repos, count is %d, out of candidate count %d\n", len(repoPaths), len(candidateRepoPaths))
-	if len(repoPaths) > 0 {
-		cmdResults := execGitFetch(repoPaths)
-		displayGitCmdResults(cmdResults)
-	}
-
-	return nil
+	return runCmdOnExistingRepos(*projectsDirectoryPath,
+		func(repoPaths []string) gitCmdResults {
+			return execGitFetch(repoPaths, *remoteName)
+		})
 }
 
 func list(args []string) error {
@@ -150,19 +152,7 @@ func list(args []string) error {
 
 	isVerbose = *verbose
 
-	logDebugf("About to instantiate provider [%s]\n", *providerName)
-	connAttrs := connectionAttributes{
-		Url:      *url,
-		Username: *userName,
-		Password: *password,
-	}
-	provider, err := newProvider(*providerName, connAttrs)
-	if err != nil {
-		return err
-	}
-
-	logDebugf("About to get repos for provider [%s]\n", *providerName)
-	repos, err := provider.getRepos(*parentName)
+	repos, err := getProviderRepos(*providerName, *url, *userName, *password, *parentName)
 	if err != nil {
 		return err
 	}
@@ -186,6 +176,7 @@ func pull(args []string) error {
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
+	remoteName := cmdFlags.String("remotename", "upstream", "Projects directory path")
 	verbose := cmdFlags.Bool("verbose", false, "Verbose flag")
 	if err := cmdFlags.Parse(args); err != nil {
 		return err
@@ -193,19 +184,11 @@ func pull(args []string) error {
 
 	isVerbose = *verbose
 
-	candidateRepoPaths, err := getAllSubDirectoryPaths(*projectsDirectoryPath)
-	if err != nil {
-		return err
-	}
-	repoPaths := filterGitReposOnly(candidateRepoPaths)
+	return runCmdOnExistingRepos(*projectsDirectoryPath,
+		func(repoPaths []string) gitCmdResults {
+			return execGitPull(repoPaths, *remoteName)
+		})
 
-	logDebugf("About to run pull for repos, count is %d, out of candidate count %d\n", len(repoPaths), len(candidateRepoPaths))
-	if len(repoPaths) > 0 {
-		cmdResults := execGitPull(repoPaths)
-		displayGitCmdResults(cmdResults)
-	}
-
-	return nil
 }
 
 func status(args []string) error {
@@ -220,17 +203,58 @@ func status(args []string) error {
 
 	isVerbose = *verbose
 
-	candidateRepoPaths, err := getAllSubDirectoryPaths(*projectsDirectoryPath)
+	return runCmdOnExistingRepos(*projectsDirectoryPath,
+		func(repoPaths []string) gitCmdResults {
+			return execGitStatus(repoPaths)
+		})
+}
+
+func runCmdOnExistingRepos(projectsDirectoryPath string, runGitCmds runGitCommandOnExistingReposFn) error {
+	candidateRepoPaths, err := getAllSubDirectoryPaths(projectsDirectoryPath)
 	if err != nil {
 		return err
 	}
 	repoPaths := filterGitReposOnly(candidateRepoPaths)
 
-	logDebugf("About to run status for repos, count is %d, out of candidate count %d\n", len(repoPaths), len(candidateRepoPaths))
+	logDebugf("About to run command on repos, count is %d, out of candidate count %d\n", len(repoPaths), len(candidateRepoPaths))
 	if len(repoPaths) > 0 {
-		cmdResults := execGitStatus(repoPaths)
+		cmdResults := runGitCmds(repoPaths)
 		displayGitCmdResults(cmdResults)
 	}
 
 	return nil
+}
+
+func displayGitCmdResults(results gitCmdResults) {
+	for _, result := range results {
+		fmt.Printf("\x1b[32m%s\x1b[0m\n", result.RepoPath)
+		if result.Error != nil {
+			fmt.Printf("\x1b[31m%s\x1b[0m\n", result.Error)
+		}
+		for _, line := range result.Output {
+			fmt.Printf("\t%s\n", line)
+		}
+		fmt.Println()
+	}
+}
+
+func getProviderRepos(providerName, url, userName, password, parentName string) (repositoryDetails, error) {
+	logDebugf("About to instantiate provider [%s]\n", providerName)
+	connAttrs := providerConnectionAttributes{
+		Url:      url,
+		Username: userName,
+		Password: password,
+	}
+	provider, err := newProvider(providerName, connAttrs)
+	if err != nil {
+		return nil, err
+	}
+
+	logDebugf("About to get repos for provider [%s]\n", providerName)
+	repos, err := provider.getRepos(parentName)
+	if err != nil {
+		return nil, err
+	}
+
+	return repos, nil
 }

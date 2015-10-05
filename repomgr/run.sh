@@ -3,10 +3,17 @@ set -e
 
 go build
 
-#./repomgr list -verbose -provider github -parentName pmcgrath -url https://api.github.com
-#./repomgr list -verbose -provider stash -parentName SER -url http://localhost:8080
+#./repomgr list -verbose -provider github -parentname pmcgrath -url https://api.github.com
+#./repomgr list -verbose -provider stash -parentname SER -url http://localhost:8080
 
-#./repomgr clone -verbose -provider github -parentName pmcgrath -url https://api.github.com -usessh -projectsdirectorypath /tmp/repos
+#./repomgr clone -verbose -provider github -parentname pmcgrath -url https://api.github.com -usessh -projectsdirectorypath /tmp/repos
 
 
-./repomgr status -verbose -projectsdirectorypath ~/oss/github.com/pmcgrath
+#./repomgr status -verbose -projectsdirectorypath ~/oss/github.com/pmcgrath
+
+./repomgr clone -verbose -provider github -parentname bstack -url https://api.github.com -usessh -projectsdirectorypath /tmp/repos
+./repomgr fetch -verbose -projectsdirectorypath /tmp/repos
+./repomgr pull -verbose -projectsdirectorypath /tmp/repos
+./repomgr status -verbose -projectsdirectorypath /tmp/repos
+./repomgr branch -verbose -projectsdirectorypath /tmp/repos
+./repomgr fetch -verbose -projectsdirectorypath /tmp/repos -remotename ted

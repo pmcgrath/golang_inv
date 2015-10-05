@@ -18,7 +18,7 @@ func getDefaultProjectsDirectoryPath() string {
 }
 
 func getAllSubDirectoryPaths(directoryPath string) ([]string, error) {
-	var dirs []string
+	dirs := []string{}
 
 	files, err := ioutil.ReadDir(directoryPath)
 	if err != nil {
@@ -36,6 +36,6 @@ func getAllSubDirectoryPaths(directoryPath string) ([]string, error) {
 }
 
 func testIfDirectoryExists(directoryPath string) bool {
-	_, err := os.Stat(directoryPath)
-	return err == nil
+	info, err := os.Stat(directoryPath)
+	return err == nil && info.IsDir()
 }

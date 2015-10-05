@@ -5,16 +5,16 @@ import (
 	"strings"
 )
 
-type newProviderFn func(connectionAttributes) (provider, error)
+type newProviderFn func(providerConnectionAttributes) (provider, error)
 
 func getNewProviderFns() map[string]newProviderFn {
 	return map[string]newProviderFn{
-		"github": func(c connectionAttributes) (provider, error) { return newGitHubProvider(c), nil },
-		"stash":  func(c connectionAttributes) (provider, error) { return newStashProvider(c), nil },
+		"github": func(c providerConnectionAttributes) (provider, error) { return newGitHubProvider(c), nil },
+		"stash":  func(c providerConnectionAttributes) (provider, error) { return newStashProvider(c), nil },
 	}
 }
 
-func newProvider(providerName string, connAttrs connectionAttributes) (provider, error) {
+func newProvider(providerName string, connAttrs providerConnectionAttributes) (provider, error) {
 	newProviderFns := getNewProviderFns()
 	newProviderFn, ok := newProviderFns[strings.ToLower(providerName)]
 	if !ok {
