@@ -2,10 +2,10 @@ package main
 
 // Git command result
 type gitCmdResult struct {
-	RepoPath string
-	Command  string
-	Output   []string
-	Error    error
+	Repo    string
+	Command string
+	Output  []string
+	Error   error
 }
 
 func (r gitCmdResults) Len() int {
@@ -13,7 +13,7 @@ func (r gitCmdResults) Len() int {
 }
 
 func (r gitCmdResults) Less(i, j int) bool {
-	return r[i].RepoPath < r[j].RepoPath
+	return r[i].Repo < r[j].Repo
 }
 
 func (r gitCmdResults) Swap(i, j int) {

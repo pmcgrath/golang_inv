@@ -240,7 +240,7 @@ func runCmdOnExistingRepos(projectsDirectoryPath string, runGitCmds runGitComman
 
 func displayGitCmdResults(results gitCmdResults) {
 	for _, result := range results {
-		fmt.Printf("\x1b[32m%s\x1b[0m\n", result.RepoPath)
+		fmt.Printf("\x1b[32m%s\x1b[0m\n", result.Repo)
 		if result.Error != nil {
 			fmt.Printf("\x1b[31m%s\x1b[0m\n", result.Error)
 		}

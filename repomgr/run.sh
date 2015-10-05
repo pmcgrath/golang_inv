@@ -11,9 +11,9 @@ go build
 
 #./repomgr status -verbose -projectsdirectorypath ~/oss/github.com/pmcgrath
 
-./repomgr clone -verbose -provider github -parentname bstack -url https://api.github.com -usessh -projectsdirectorypath /tmp/repos
-./repomgr fetch -verbose -projectsdirectorypath /tmp/repos
-./repomgr pull -verbose -projectsdirectorypath /tmp/repos
+#./repomgr clone -verbose -provider github -parentname bstack -url https://api.github.com -usessh -projectsdirectorypath /tmp/repos
+#./repomgr fetch -verbose -projectsdirectorypath /tmp/repos
+#./repomgr pull -verbose -projectsdirectorypath /tmp/repos
 ./repomgr status -verbose -projectsdirectorypath /tmp/repos
-./repomgr branch -verbose -projectsdirectorypath /tmp/repos
-./repomgr fetch -verbose -projectsdirectorypath /tmp/repos -remotename ted
+#./repomgr branch -verbose -projectsdirectorypath /tmp/repos
+#./repomgr fetch -verbose -projectsdirectorypath /tmp/repos -remotename ted
