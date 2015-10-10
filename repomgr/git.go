@@ -47,7 +47,7 @@ func execGitCmdOnMultipleRepos(repoPaths []string, command string, args ...strin
 }
 
 func execGitBranch(repoPaths []string) gitCmdResults {
-	return execGitCmdOnMultipleRepos(repoPaths, "symbolic-ref", "--short", "-q", "HEAD")
+	return execGitCmdOnMultipleRepos(repoPaths, "branch", "-av")
 }
 
 func execGitClone(rootDirectoryPath string, repoUrls []string, remoteName string) gitCmdResults {
@@ -87,6 +87,10 @@ func execGitFetch(repoPaths []string, remoteName string) gitCmdResults {
 
 func execGitPull(repoPaths []string, remoteName string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(repoPaths, "pull", remoteName)
+}
+
+func execGitRemote(repoPaths []string) gitCmdResults {
+	return execGitCmdOnMultipleRepos(repoPaths, "remote", "--verbose")
 }
 
 func execGitStatus(repoPaths []string) gitCmdResults {

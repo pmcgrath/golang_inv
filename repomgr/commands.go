@@ -26,12 +26,13 @@ func getCommandFns() map[string]commandFn {
 		"fetch":  fetch,
 		"list":   list,
 		"pull":   pull,
+		"remote": remote,
 		"status": status,
 	}
 }
 
 func branch(args []string) error {
-	log.Println("About to run [batch] command")
+	log.Println("About to run [branch] command")
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
@@ -202,6 +203,24 @@ func pull(args []string) error {
 			return execGitPull(repoPaths, *remoteName)
 		})
 
+}
+
+func remote(args []string) error {
+	log.Println("About to run [remote] command")
+
+	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
+	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
+	verbose := cmdFlags.Bool("verbose", false, "Verbose flag")
+	if err := cmdFlags.Parse(args); err != nil {
+		return err
+	}
+
+	isVerbose = *verbose
+
+	return runCmdOnExistingRepos(*projectsDirectoryPath,
+		func(repoPaths []string) gitCmdResults {
+			return execGitRemote(repoPaths)
+		})
 }
 
 func status(args []string) error {
