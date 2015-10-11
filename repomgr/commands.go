@@ -17,8 +17,6 @@ const (
 
 type commandFn func([]string) error
 
-type runGitCommandOnExistingReposFn func([]string) gitCmdResults
-
 func getCommandFns() map[string]commandFn {
 	return map[string]commandFn{
 		"branch": branch,
@@ -43,10 +41,7 @@ func branch(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos(*projectsDirectoryPath,
-		func(repoPaths []string) gitCmdResults {
-			return execGitBranch(repoPaths)
-		})
+	return runCmdOnExistingRepos("branch", *projectsDirectoryPath, "")
 }
 
 func clone(args []string) error {
@@ -138,10 +133,7 @@ func fetch(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos(*projectsDirectoryPath,
-		func(repoPaths []string) gitCmdResults {
-			return execGitFetch(repoPaths, *remoteName)
-		})
+	return runCmdOnExistingRepos("fetch", *projectsDirectoryPath, *remoteName)
 }
 
 func list(args []string) error {
@@ -157,7 +149,7 @@ func list(args []string) error {
 	providerName := cmdFlags.String("provider", "", "Provider - github, stash")
 	userName := cmdFlags.String("username", currentUserName, "Username - if not supplied will be the current user's name")
 	password := cmdFlags.String("password", os.Getenv(envVarNamePassword), "Password - if not supplied will be try to use the REPO_PASSWORD environment variable")
-	parentName := cmdFlags.String("parentName", "", "Parent name - github organisation\\user, stash project key")
+	parentName := cmdFlags.String("parentname", "", "Parent name - github organisation\\user, stash project key")
 	format := cmdFlags.String("format", `{{printf "%-25s%-60s " .ParentName .Name}}{{range $key, $value := .ProtocolUrls}}{{$key}}: {{$value}} {{end}}`, "Format string for outputing the list")
 	verbose := cmdFlags.Bool("verbose", false, "Verbose flag")
 	if err := cmdFlags.Parse(args); err != nil {
@@ -198,11 +190,7 @@ func pull(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos(*projectsDirectoryPath,
-		func(repoPaths []string) gitCmdResults {
-			return execGitPull(repoPaths, *remoteName)
-		})
-
+	return runCmdOnExistingRepos("pull", *projectsDirectoryPath, *remoteName)
 }
 
 func remote(args []string) error {
@@ -217,10 +205,7 @@ func remote(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos(*projectsDirectoryPath,
-		func(repoPaths []string) gitCmdResults {
-			return execGitRemote(repoPaths)
-		})
+	return runCmdOnExistingRepos("remote", *projectsDirectoryPath, "")
 }
 
 func status(args []string) error {
@@ -235,22 +220,34 @@ func status(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos(*projectsDirectoryPath,
-		func(repoPaths []string) gitCmdResults {
-			return execGitStatus(repoPaths)
-		})
+	return runCmdOnExistingRepos("status", *projectsDirectoryPath, "")
 }
 
-func runCmdOnExistingRepos(projectsDirectoryPath string, runGitCmds runGitCommandOnExistingReposFn) error {
+func runCmdOnExistingRepos(command, projectsDirectoryPath, remoteName string) error {
 	candidateRepoPaths, err := getAllSubDirectoryPaths(projectsDirectoryPath)
 	if err != nil {
 		return err
 	}
 	repoPaths := filterGitReposOnly(candidateRepoPaths)
 
-	logDebugf("About to run command on repos, count is %d, out of candidate count %d\n", len(repoPaths), len(candidateRepoPaths))
+	logDebugf("About to run command [%s] on repos, count is %d, out of candidate count %d\n", command, len(repoPaths), len(candidateRepoPaths))
 	if len(repoPaths) > 0 {
-		cmdResults := runGitCmds(repoPaths)
+		var cmdResults gitCmdResults
+		switch command {
+		case "branch":
+			cmdResults = execGitBranch(repoPaths)
+		case "fetch":
+			cmdResults = execGitFetch(repoPaths, remoteName)
+		case "pull":
+			cmdResults = execGitPull(repoPaths, remoteName)
+		case "remote":
+			cmdResults = execGitRemote(repoPaths)
+		case "status":
+			cmdResults = execGitStatus(repoPaths)
+		default:
+			return fmt.Errorf("Unexpected command [%s]", command)
+		}
+
 		displayGitCmdResults(cmdResults)
 	}
 

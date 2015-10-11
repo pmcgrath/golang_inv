@@ -19,7 +19,6 @@ go build
 #./repomgr branch -verbose -projectsdirectorypath /tmp/repos
 #./repomgr fetch -verbose -projectsdirectorypath /tmp/repos -remotename ted
 
-
 for action in remote branch status; do
 	echo -e "\n\n$action"
 	./repomgr $action -projectsdirectorypath /tmp/repos

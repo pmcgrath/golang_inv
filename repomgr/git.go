@@ -12,40 +12,6 @@ import (
 	"sync"
 )
 
-func execGitCmdOnMultipleRepos(repoPaths []string, command string, args ...string) gitCmdResults {
-	// This executes the same command on a bunch of already existing repos
-	repoCount := len(repoPaths)
-	resultsCh := make(chan gitCmdResult, repoCount)
-
-	var wg sync.WaitGroup
-	for _, repoPath := range repoPaths {
-		wg.Add(1)
-		go func(repoPath string) {
-			defer wg.Done()
-
-			// Need to use --git-dir and --work-tree git args, was using a os.Chdir golang instruction but this was changing the working dir for the
-			// golang process and then trying to run a git command, but since we are using goroutines this is unpredictable, where a number of them
-			// can be changing the dir at the same time, could end up running a git command in a different directory, by using these git args, the
-			// process can control this for each repo. We are assuming the .git directory is a sub directory within the git repo which is the default
-			gitDir := path.Join(repoPath, ".git")
-			gitArgs := append([]string{"--git-dir", gitDir, "--work-tree", repoPath, command}, args...)
-			logDebugf("About to run git with the following args %v", gitArgs)
-			cmdOutput, err := execCmd("git", gitArgs...)
-			resultsCh <- gitCmdResult{RepoPath: repoPath, Command: command, Output: cmdOutput, Error: err}
-		}(repoPath)
-	}
-	wg.Wait()
-	close(resultsCh)
-
-	var res gitCmdResults
-	for result := range resultsCh {
-		res = append(res, result)
-	}
-
-	sort.Sort(res)
-	return res
-}
-
 func execGitBranch(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(repoPaths, "branch", "-av")
 }
@@ -112,5 +78,39 @@ func filterGitReposOnly(directoryPaths []string) []string {
 		}
 	}
 
+	return res
+}
+
+func execGitCmdOnMultipleRepos(repoPaths []string, command string, args ...string) gitCmdResults {
+	// This executes the same command on a bunch of already existing repos
+	repoCount := len(repoPaths)
+	resultsCh := make(chan gitCmdResult, repoCount)
+
+	var wg sync.WaitGroup
+	for _, repoPath := range repoPaths {
+		wg.Add(1)
+		go func(repoPath string) {
+			defer wg.Done()
+
+			// Need to use --git-dir and --work-tree git args, was using a os.Chdir golang instruction but this was changing the working dir for the
+			// golang process and then trying to run a git command, but since we are using goroutines this is unpredictable, where a number of them
+			// can be changing the dir at the same time, could end up running a git command in a different directory, by using these git args, the
+			// process can control this for each repo. We are assuming the .git directory is a sub directory within the git repo which is the default
+			gitDir := path.Join(repoPath, ".git")
+			gitArgs := append([]string{"--git-dir", gitDir, "--work-tree", repoPath, command}, args...)
+			logDebugf("About to run git with the following args %v", gitArgs)
+			cmdOutput, err := execCmd("git", gitArgs...)
+			resultsCh <- gitCmdResult{RepoPath: repoPath, Command: command, Output: cmdOutput, Error: err}
+		}(repoPath)
+	}
+	wg.Wait()
+	close(resultsCh)
+
+	var res gitCmdResults
+	for result := range resultsCh {
+		res = append(res, result)
+	}
+
+	sort.Sort(res)
 	return res
 }
