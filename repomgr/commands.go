@@ -10,6 +10,19 @@ import (
 	"text/template"
 )
 
+type command string
+
+const (
+	unknownCmd command = "unknown"
+	branchCmd          = "branch"
+	cloneCmd           = "regular user"
+	fetchCmd           = "fetch"
+	listCmd            = "list"
+	pullCmd            = "pull"
+	remoteCmd          = "remote"
+	statusCmd          = "status"
+)
+
 const (
 	envVarNamePassword = "REPO_PASSWORD"
 	envVarNameHostUrl  = "REPO_HOST_URL"
@@ -17,20 +30,20 @@ const (
 
 type commandFn func([]string) error
 
-func getCommandFns() map[string]commandFn {
-	return map[string]commandFn{
-		"branch": branch,
-		"clone":  clone,
-		"fetch":  fetch,
-		"list":   list,
-		"pull":   pull,
-		"remote": remote,
-		"status": status,
+func getCommandFns() map[command]commandFn {
+	return map[command]commandFn{
+		branchCmd: branch,
+		cloneCmd:  clone,
+		fetchCmd:  fetch,
+		listCmd:   list,
+		pullCmd:   pull,
+		remoteCmd: remote,
+		statusCmd: status,
 	}
 }
 
 func branch(args []string) error {
-	log.Println("About to run [branch] command")
+	log.Printf("About to run [%s] command\n", branchCmd)
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
@@ -41,11 +54,11 @@ func branch(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos("branch", *projectsDirectoryPath, "")
+	return runCmdOnExistingRepos(branchCmd, *projectsDirectoryPath, "")
 }
 
 func clone(args []string) error {
-	log.Println("About to run [clone] command")
+	log.Printf("About to run [%s] command", cloneCmd)
 
 	currentUserName, err := getCurrentUserName()
 	if err != nil {
@@ -121,7 +134,7 @@ func clone(args []string) error {
 }
 
 func fetch(args []string) error {
-	log.Println("About to run [fetch] command")
+	log.Printf("About to run [%s] command", fetchCmd)
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
@@ -133,11 +146,11 @@ func fetch(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos("fetch", *projectsDirectoryPath, *remoteName)
+	return runCmdOnExistingRepos(fetchCmd, *projectsDirectoryPath, *remoteName)
 }
 
 func list(args []string) error {
-	log.Println("About to run [list] command")
+	log.Printf("About to run [%s] command", listCmd)
 
 	currentUserName, err := getCurrentUserName()
 	if err != nil {
@@ -178,7 +191,7 @@ func list(args []string) error {
 }
 
 func pull(args []string) error {
-	log.Println("About to run [pull] command")
+	log.Printf("About to run [%s] command", pullCmd)
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
@@ -190,11 +203,11 @@ func pull(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos("pull", *projectsDirectoryPath, *remoteName)
+	return runCmdOnExistingRepos(pullCmd, *projectsDirectoryPath, *remoteName)
 }
 
 func remote(args []string) error {
-	log.Println("About to run [remote] command")
+	log.Printf("About to run [%s] command", remoteCmd)
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
@@ -205,11 +218,11 @@ func remote(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos("remote", *projectsDirectoryPath, "")
+	return runCmdOnExistingRepos(remoteCmd, *projectsDirectoryPath, "")
 }
 
 func status(args []string) error {
-	log.Println("About to run [status] command")
+	log.Printf("About to run [%s] command", statusCmd)
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
@@ -220,10 +233,10 @@ func status(args []string) error {
 
 	isVerbose = *verbose
 
-	return runCmdOnExistingRepos("status", *projectsDirectoryPath, "")
+	return runCmdOnExistingRepos(statusCmd, *projectsDirectoryPath, "")
 }
 
-func runCmdOnExistingRepos(command, projectsDirectoryPath, remoteName string) error {
+func runCmdOnExistingRepos(command command, projectsDirectoryPath, remoteName string) error {
 	candidateRepoPaths, err := getAllSubDirectoryPaths(projectsDirectoryPath)
 	if err != nil {
 		return err
@@ -234,15 +247,15 @@ func runCmdOnExistingRepos(command, projectsDirectoryPath, remoteName string) er
 	if len(repoPaths) > 0 {
 		var cmdResults gitCmdResults
 		switch command {
-		case "branch":
+		case branchCmd:
 			cmdResults = execGitBranch(repoPaths)
-		case "fetch":
+		case fetchCmd:
 			cmdResults = execGitFetch(repoPaths, remoteName)
-		case "pull":
+		case pullCmd:
 			cmdResults = execGitPull(repoPaths, remoteName)
-		case "remote":
+		case remoteCmd:
 			cmdResults = execGitRemote(repoPaths)
-		case "status":
+		case statusCmd:
 			cmdResults = execGitStatus(repoPaths)
 		default:
 			return fmt.Errorf("Unexpected command [%s]", command)
