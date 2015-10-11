@@ -13,59 +13,35 @@ import (
 )
 
 func execGitBranch(repoPaths []string) gitCmdResults {
-	return execGitCmdOnMultipleRepos(repoPaths, "branch", "-av")
+	return execGitCmdOnMultipleExistingRepos(repoPaths, "branch", "-av")
 }
 
 func execGitClone(rootDirectoryPath string, repoUrls []string, remoteName string) gitCmdResults {
+	startingDirectoryPath, _ := os.Getwd()
 	os.Chdir(rootDirectoryPath)
+	defer os.Chdir(startingDirectoryPath)
 
 	// This executes clone on each of the url's - assumes the repo is not already cloned
-	repoCount := len(repoUrls)
-	resultsCh := make(chan gitCmdResult, repoCount)
-
-	var wg sync.WaitGroup
-	for _, repoUrl := range repoUrls {
-		wg.Add(1)
-		go func(repoUrl string) {
-			defer wg.Done()
-
-			logDebugf("About to clone for [%s]\n", repoUrl)
-			cmdArgs := []string{"clone", "--origin", remoteName, repoUrl}
-			cmdOutput, err := execCmd("git", cmdArgs...)
-			resultsCh <- gitCmdResult{RepoPath: repoUrl, Command: "clone", Output: cmdOutput, Error: err}
-			logDebugf("Completed clone for [%s]\n", repoUrl)
-		}(repoUrl)
-	}
-	wg.Wait()
-	close(resultsCh)
-
-	var res gitCmdResults
-	for result := range resultsCh {
-		res = append(res, result)
-	}
-
-	sort.Sort(res)
-	return res
+	return execGitCmdOnMultipleRepos(
+		repoUrls,
+		func(repoUrl string) []string {
+			return []string{"clone", "--origin", remoteName, repoUrl}
+		})
 }
 func execGitFetch(repoPaths []string, remoteName string) gitCmdResults {
-	return execGitCmdOnMultipleRepos(repoPaths, "fetch", remoteName)
+	return execGitCmdOnMultipleExistingRepos(repoPaths, "fetch", remoteName)
 }
 
 func execGitPull(repoPaths []string, remoteName string) gitCmdResults {
-	return execGitCmdOnMultipleRepos(repoPaths, "pull", remoteName)
+	return execGitCmdOnMultipleExistingRepos(repoPaths, "pull", remoteName)
 }
 
 func execGitRemote(repoPaths []string) gitCmdResults {
-	return execGitCmdOnMultipleRepos(repoPaths, "remote", "--verbose")
+	return execGitCmdOnMultipleExistingRepos(repoPaths, "remote", "--verbose")
 }
 
 func execGitStatus(repoPaths []string) gitCmdResults {
-	return execGitCmdOnMultipleRepos(repoPaths, "status", "--porcelain")
-}
-
-func getGitRepoNameFromUrl(repoUrl string) string {
-	_, repoDirectoryName := path.Split(repoUrl)
-	return strings.TrimSuffix(repoDirectoryName, ".git")
+	return execGitCmdOnMultipleExistingRepos(repoPaths, "status", "--porcelain")
 }
 
 func filterGitReposOnly(directoryPaths []string) []string {
@@ -81,27 +57,42 @@ func filterGitReposOnly(directoryPaths []string) []string {
 	return res
 }
 
-func execGitCmdOnMultipleRepos(repoPaths []string, command string, args ...string) gitCmdResults {
-	// This executes the same command on a bunch of already existing repos
-	repoCount := len(repoPaths)
-	resultsCh := make(chan gitCmdResult, repoCount)
+func getGitRepoNameFromUrl(repoUrl string) string {
+	_, repoDirectoryName := path.Split(repoUrl)
+	return strings.TrimSuffix(repoDirectoryName, ".git")
+}
 
-	var wg sync.WaitGroup
-	for _, repoPath := range repoPaths {
-		wg.Add(1)
-		go func(repoPath string) {
-			defer wg.Done()
-
+func execGitCmdOnMultipleExistingRepos(repoPaths []string, command string, args ...string) gitCmdResults {
+	return execGitCmdOnMultipleRepos(
+		repoPaths,
+		func(repoPath string) []string {
 			// Need to use --git-dir and --work-tree git args, was using a os.Chdir golang instruction but this was changing the working dir for the
 			// golang process and then trying to run a git command, but since we are using goroutines this is unpredictable, where a number of them
 			// can be changing the dir at the same time, could end up running a git command in a different directory, by using these git args, the
 			// process can control this for each repo. We are assuming the .git directory is a sub directory within the git repo which is the default
 			gitDir := path.Join(repoPath, ".git")
 			gitArgs := append([]string{"--git-dir", gitDir, "--work-tree", repoPath, command}, args...)
-			logDebugf("About to run git with the following args %v", gitArgs)
-			cmdOutput, err := execCmd("git", gitArgs...)
-			resultsCh <- gitCmdResult{RepoPath: repoPath, Command: command, Output: cmdOutput, Error: err}
-		}(repoPath)
+
+			return gitArgs
+		})
+}
+
+func execGitCmdOnMultipleRepos(repos []string, createGitCmdArgs func(string) []string) gitCmdResults {
+	repoCount := len(repos)
+	resultsCh := make(chan gitCmdResult, repoCount)
+
+	var wg sync.WaitGroup
+	for _, repo := range repos {
+		wg.Add(1)
+		go func(repo string) {
+			defer wg.Done()
+
+			gitCmdArgs := createGitCmdArgs(repo)
+			logDebugf("About to run git with the following args %v", gitCmdArgs)
+			cmdOutput, err := execCmd("git", gitCmdArgs...)
+			logDebugf("Completed running git with the following args %v", gitCmdArgs)
+			resultsCh <- gitCmdResult{RepoPath: repo, Command: "command", Output: cmdOutput, Error: err}
+		}(repo)
 	}
 	wg.Wait()
 	close(resultsCh)

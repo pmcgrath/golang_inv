@@ -15,7 +15,7 @@ type command string
 const (
 	unknownCmd command = "unknown"
 	branchCmd          = "branch"
-	cloneCmd           = "regular user"
+	cloneCmd           = "clone"
 	fetchCmd           = "fetch"
 	listCmd            = "list"
 	pullCmd            = "pull"

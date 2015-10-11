@@ -11,7 +11,7 @@ go build
 
 #./repomgr status -verbose -projectsdirectorypath ~/oss/github.com/pmcgrath
 
-#./repomgr clone -verbose -provider github -parentname bstack -url https://api.github.com -usessh -projectsdirectorypath /tmp/repos
+./repomgr clone -verbose -provider github -parentname bstack -url https://api.github.com -usessh -projectsdirectorypath /tmp/repos
 #./repomgr fetch -verbose -projectsdirectorypath /tmp/repos
 #./repomgr remote -verbose -projectsdirectorypath /tmp/repos
 #./repomgr pull -verbose -projectsdirectorypath /tmp/repos
@@ -22,4 +22,9 @@ go build
 for action in remote branch status; do
 	echo -e "\n\n$action"
 	./repomgr $action -projectsdirectorypath /tmp/repos
+done
+
+for action in fetch pull; do
+	echo -e "\n\n$action"
+	./repomgr $action -projectsdirectorypath /tmp/repos -remotename upstream
 done
