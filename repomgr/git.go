@@ -12,6 +12,10 @@ import (
 	"sync"
 )
 
+var (
+	cmdExecutionFn = execCmd
+)
+
 func execGitBranch(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleExistingRepos(repoPaths, "branch", "-av")
 }
@@ -24,6 +28,7 @@ func execGitClone(rootDirectoryPath string, repoUrls []string, remoteName string
 	// This executes clone on each of the url's - assumes the repo is not already cloned
 	return execGitCmdOnMultipleRepos(
 		repoUrls,
+		"clone",
 		func(repoUrl string) []string {
 			return []string{"clone", "--origin", remoteName, repoUrl}
 		})
@@ -65,6 +70,7 @@ func getGitRepoNameFromUrl(repoUrl string) string {
 func execGitCmdOnMultipleExistingRepos(repoPaths []string, command string, args ...string) gitCmdResults {
 	return execGitCmdOnMultipleRepos(
 		repoPaths,
+		command,
 		func(repoPath string) []string {
 			// Need to use --git-dir and --work-tree git args, was using a os.Chdir golang instruction but this was changing the working dir for the
 			// golang process and then trying to run a git command, but since we are using goroutines this is unpredictable, where a number of them
@@ -77,7 +83,7 @@ func execGitCmdOnMultipleExistingRepos(repoPaths []string, command string, args 
 		})
 }
 
-func execGitCmdOnMultipleRepos(repos []string, createGitCmdArgs func(string) []string) gitCmdResults {
+func execGitCmdOnMultipleRepos(repos []string, gitCommand string, createGitCmdArgs func(string) []string) gitCmdResults {
 	repoCount := len(repos)
 	resultsCh := make(chan gitCmdResult, repoCount)
 
@@ -89,9 +95,9 @@ func execGitCmdOnMultipleRepos(repos []string, createGitCmdArgs func(string) []s
 
 			gitCmdArgs := createGitCmdArgs(repo)
 			logDebugf("About to run git with the following args %v", gitCmdArgs)
-			cmdOutput, err := execCmd("git", gitCmdArgs...)
+			cmdOutput, err := cmdExecutionFn("git", gitCmdArgs...)
 			logDebugf("Completed running git with the following args %v", gitCmdArgs)
-			resultsCh <- gitCmdResult{RepoPath: repo, Command: "command", Output: cmdOutput, Error: err}
+			resultsCh <- gitCmdResult{RepoPath: repo, Command: gitCommand, Output: cmdOutput, Error: err}
 		}(repo)
 	}
 	wg.Wait()
