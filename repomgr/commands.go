@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"text/template"
 )
@@ -268,10 +269,15 @@ func runCmdOnExistingRepos(command command, projectsDirectoryPath, remoteName st
 }
 
 func displayGitCmdResults(results gitCmdResults) {
+	greenColour, redColour, resetColour := "\x1b[32m", "\x1b[31m", "\x1b[0m"
+	if runtime.GOOS == "windows" {
+		greenColour, redColour, resetColour = "", "", "m"
+	}
+
 	for _, result := range results {
-		fmt.Printf("\x1b[32m%s\x1b[0m\n", result.RepoPath)
+		fmt.Printf("%s%s%s\n", greenColour, result.RepoPath, resetColour)
 		if result.Error != nil {
-			fmt.Printf("\x1b[31m%s\x1b[0m\n", result.Error)
+			fmt.Printf("%s%s%s\n", redColour, result.Error, resetColour)
 		}
 		for _, line := range result.Output {
 			fmt.Printf("\t%s\n", line)
