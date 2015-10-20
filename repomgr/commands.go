@@ -108,7 +108,7 @@ func clone(args []string) error {
 			// 	Should be at least https
 			//	Would be good to store the username as part of the remote url, should this be optional
 `
-			log.Printf("Using http - your password is in the remote url on disk !!!\n\n", securityMessage)
+			log.Println("Using http - your password is in the remote url on disk !!!\n\n", securityMessage)
 
 			repoUrl = repo.ProtocolUrls["http"]
 			replace := fmt.Sprintf("http://%s@", *userName)

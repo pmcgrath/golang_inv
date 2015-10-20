@@ -30,7 +30,7 @@ func TestGetAllSubDirectoryPaths(t *testing.T) {
 	} {
 		actual, err := getAllSubDirectoryPaths(testCase.Path)
 		if err != nil {
-			t.Errorf("Unexpected error encountered for [%s], got an error = %t", testCase.Path, err)
+			t.Errorf("Unexpected error encountered for [%s], got an error = %s", testCase.Path, err)
 		}
 		if !reflect.DeepEqual(actual, testCase.ExpectedSubDirs) {
 			t.Errorf("Unexpected subdirs encountered for [%s], got %v but expected %v", testCase.Path, actual, testCase.ExpectedSubDirs)
