@@ -87,7 +87,7 @@ func TestExecGitBranchWithAFailure(t *testing.T) {
 
 	previous := cmdExecutionFn
 	defer func() { cmdExecutionFn = previous }()
-	execCmdErr := fmt.Errorf("BANG!")
+	execCmdErr := fmt.Errorf("BANG")
 	cmdExecutionFn = func(cmdName string, args ...string) ([]string, error) {
 		if args[3] == erroredRepoPath {
 			return nil, execCmdErr
@@ -125,28 +125,28 @@ func TestExecGitBranchWithAFailure(t *testing.T) {
 
 func TestExecGitClone(t *testing.T) {
 	// Needed to be in sorted order as the test assertions depend on this
-	repoUrls := []string{"git@bitbucket.org:pmcgrath/bbdotfiles.git", "git@github.com:pmcgrath/dotfiles.git", "git@github.com:pmcgrath/other.git"}
+	repoURLs := []string{"git@bitbucket.org:pmcgrath/bbdotfiles.git", "git@github.com:pmcgrath/dotfiles.git", "git@github.com:pmcgrath/other.git"}
 	remoteName := "some_other_remote"
 
 	previous := cmdExecutionFn
 	defer func() { cmdExecutionFn = previous }()
 	cmdExecutionFn = execCmdSpy
 
-	results := execGitClone("/tmp", repoUrls, remoteName)
-	if len(results) != len(repoUrls) {
+	results := execGitClone("/tmp", repoURLs, remoteName)
+	if len(results) != len(repoURLs) {
 		t.Errorf("Unexpected result count : %d", len(results))
 	}
-	for index, repoUrl := range repoUrls {
+	for index, repoURL := range repoURLs {
 		repoResult := results[index] // Since we ensured the input is sorted, we can rely on the order
 
-		if repoResult.RepoPath != repoUrl {
-			t.Errorf("Unexpected result RepoPath, expected %s, but got %s", repoUrl, repoResult.RepoPath)
+		if repoResult.RepoPath != repoURL {
+			t.Errorf("Unexpected result RepoPath, expected %s, but got %s", repoURL, repoResult.RepoPath)
 		}
 		if repoResult.Command != cloneCmd {
 			t.Errorf("Unexpected result Command, expected %s, but got %s", cloneCmd, repoResult.Command)
 		}
 		// Sample command is : git clone --origin github git@github.com:pmcgrath/dotfiles.git
-		expectedOutput := fmt.Sprintf("cmdName: git, args: clone --origin %s %s", remoteName, repoUrl)
+		expectedOutput := fmt.Sprintf("cmdName: git, args: clone --origin %s %s", remoteName, repoURL)
 		if repoResult.Output[0] != expectedOutput {
 			t.Errorf("Unexpected result Output, expected %s, but got %s", expectedOutput, repoResult.Output[0])
 		}

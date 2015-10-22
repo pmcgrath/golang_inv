@@ -4,6 +4,7 @@
 	Can see the data we are working with using
 		curl -v -H "Accept: application/json" https://api.github.com/users/pmcgrath/repos
 */
+
 package main
 
 import (
@@ -29,7 +30,7 @@ func (p gitHub) getRepos(parentName string) (repos repositoryDetails, err error)
 		Timeout: timeout,
 	}
 
-	url := fmt.Sprintf("%s/users/%s/repos", p.connAttrs.Url, parentName)
+	url := fmt.Sprintf("%s/users/%s/repos", p.connAttrs.URL, parentName)
 	req, err := http.NewRequest("GET", url, nil)
 	// Github does not require authentication for public repos
 	if p.connAttrs.Password != "" {
@@ -58,7 +59,7 @@ func (p gitHub) getRepos(parentName string) (repos repositoryDetails, err error)
 		repo := repositoryDetail{
 			ParentName: parentName,
 			Name:       repoData["name"].(string),
-			ProtocolUrls: map[string]string{
+			ProtocolURLs: map[string]string{
 				"https": repoData["clone_url"].(string),
 				"ssh":   repoData["ssh_url"].(string),
 			},

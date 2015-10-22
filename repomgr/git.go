@@ -2,6 +2,7 @@
 	Just shelling out to git here, could have used https://github.com/libgit2/git2go
 	Didn't bother with a pool here as we do not expect the repo count to be too big
 */
+
 package main
 
 import (
@@ -20,17 +21,17 @@ func execGitBranch(repoPaths []string) gitCmdResults {
 	return execGitCmdOnMultipleExistingRepos(repoPaths, "branch", "-av")
 }
 
-func execGitClone(rootDirectoryPath string, repoUrls []string, remoteName string) gitCmdResults {
+func execGitClone(rootDirectoryPath string, repoURLs []string, remoteName string) gitCmdResults {
 	startingDirectoryPath, _ := os.Getwd()
 	os.Chdir(rootDirectoryPath)
 	defer os.Chdir(startingDirectoryPath)
 
 	// This executes clone on each of the url's - assumes the repo is not already cloned
 	return execGitCmdOnMultipleRepos(
-		repoUrls,
+		repoURLs,
 		"clone",
-		func(repoUrl string) []string {
-			return []string{"clone", "--origin", remoteName, repoUrl}
+		func(repoURL string) []string {
+			return []string{"clone", "--origin", remoteName, repoURL}
 		})
 }
 func execGitFetch(repoPaths []string, remoteName string) gitCmdResults {
@@ -62,8 +63,8 @@ func filterGitReposOnly(directoryPaths []string) []string {
 	return res
 }
 
-func getGitRepoNameFromUrl(repoUrl string) string {
-	_, repoDirectoryName := path.Split(repoUrl)
+func getGitRepoNameFromURL(repoURL string) string {
+	_, repoDirectoryName := path.Split(repoURL)
 	return strings.TrimSuffix(repoDirectoryName, ".git")
 }
 

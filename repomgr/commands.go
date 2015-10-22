@@ -26,7 +26,7 @@ const (
 
 const (
 	envVarNamePassword = "REPO_PASSWORD"
-	envVarNameHostUrl  = "REPO_HOST_URL"
+	envVarNameHostURL  = "REPO_HOST_URL"
 )
 
 type commandFn func([]string) error
@@ -67,12 +67,12 @@ func clone(args []string) error {
 	}
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
-	url := cmdFlags.String("url", os.Getenv(envVarNameHostUrl), "Host url - prefix - if not supplied will try to use the REPO_HOST_URL environment variable")
+	url := cmdFlags.String("url", os.Getenv(envVarNameHostURL), "Host url - prefix - if not supplied will try to use the REPO_HOST_URL environment variable")
 	providerName := cmdFlags.String("provider", "", "Provider - github, stash")
 	userName := cmdFlags.String("username", currentUserName, "Username - if not supplied will be the current user's name")
 	password := cmdFlags.String("password", os.Getenv(envVarNamePassword), "Password - if not supplied will be try to use the REPO_PASSWORD environment variable")
 	parentName := cmdFlags.String("parentname", "", "Parent name - github organisation\\user, stash project key")
-	useSsh := cmdFlags.Bool("usessh", true, "Clone using ssh")
+	useSSH := cmdFlags.Bool("usessh", true, "Clone using ssh")
 	projectsDirectoryPath := cmdFlags.String("projectsdirectorypath", getDefaultProjectsDirectoryPath(), "Projects directory path")
 	remoteName := cmdFlags.String("remotename", "upstream", "Projects directory path")
 	verbose := cmdFlags.Bool("verbose", false, "Verbose flag")
@@ -88,11 +88,11 @@ func clone(args []string) error {
 	}
 
 	logDebugf("About to determine repos to clone, candidate count is %d\n", len(repos))
-	var repoUrls []string
+	var repoURLs []string
 	for _, repo := range repos {
-		repoUrl := ""
-		if *useSsh {
-			repoUrl = repo.ProtocolUrls["ssh"]
+		repoURL := ""
+		if *useSSH {
+			repoURL = repo.ProtocolURLs["ssh"]
 		} else {
 			securityMessage := `
 			// SECURITY !!!!
@@ -110,24 +110,24 @@ func clone(args []string) error {
 `
 			log.Println("Using http - your password is in the remote url on disk !!!\n\n", securityMessage)
 
-			repoUrl = repo.ProtocolUrls["http"]
+			repoURL = repo.ProtocolURLs["http"]
 			replace := fmt.Sprintf("http://%s@", *userName)
 			replaceWith := fmt.Sprintf("http://%s:%s@", *userName, *password)
-			repoUrl = strings.Replace(repoUrl, replace, replaceWith, -1)
+			repoURL = strings.Replace(repoURL, replace, replaceWith, -1)
 		}
 
-		repoDirectoryName := getGitRepoNameFromUrl(repoUrl)
+		repoDirectoryName := getGitRepoNameFromURL(repoURL)
 		repoDirectoryPath := path.Join(*projectsDirectoryPath, repoDirectoryName)
 		repoAlreadyExists := testIfDirectoryExists(repoDirectoryPath)
 
 		if !repoAlreadyExists {
-			repoUrls = append(repoUrls, repoUrl)
+			repoURLs = append(repoURLs, repoURL)
 		}
 	}
 
-	logDebugf("About to start cloning repos, count is %d\n", len(repoUrls))
-	if len(repoUrls) > 0 {
-		cmdResults := execGitClone(*projectsDirectoryPath, repoUrls, *remoteName)
+	logDebugf("About to start cloning repos, count is %d\n", len(repoURLs))
+	if len(repoURLs) > 0 {
+		cmdResults := execGitClone(*projectsDirectoryPath, repoURLs, *remoteName)
 		displayGitCmdResults(cmdResults)
 	}
 
@@ -159,12 +159,12 @@ func list(args []string) error {
 	}
 
 	cmdFlags := flag.NewFlagSet("flags", flag.ContinueOnError)
-	url := cmdFlags.String("url", os.Getenv(envVarNameHostUrl), "Host url - prefix - if not supplied will try to use the REPO_HOST_URL environment variable")
+	url := cmdFlags.String("url", os.Getenv(envVarNameHostURL), "Host url - prefix - if not supplied will try to use the REPO_HOST_URL environment variable")
 	providerName := cmdFlags.String("provider", "", "Provider - github, stash")
 	userName := cmdFlags.String("username", currentUserName, "Username - if not supplied will be the current user's name")
 	password := cmdFlags.String("password", os.Getenv(envVarNamePassword), "Password - if not supplied will be try to use the REPO_PASSWORD environment variable")
 	parentName := cmdFlags.String("parentname", "", "Parent name - github organisation\\user, stash project key")
-	format := cmdFlags.String("format", `{{printf "%-25s%-60s " .ParentName .Name}}{{range $key, $value := .ProtocolUrls}}{{$key}}: {{$value}} {{end}}`, "Format string for outputing the list")
+	format := cmdFlags.String("format", `{{printf "%-25s%-60s " .ParentName .Name}}{{range $key, $value := .ProtocolURLs}}{{$key}}: {{$value}} {{end}}`, "Format string for outputing the list")
 	verbose := cmdFlags.Bool("verbose", false, "Verbose flag")
 	if err := cmdFlags.Parse(args); err != nil {
 		return err
@@ -289,7 +289,7 @@ func displayGitCmdResults(results gitCmdResults) {
 func getProviderRepos(providerName, url, userName, password, parentName string) (repositoryDetails, error) {
 	logDebugf("About to instantiate provider [%s]\n", providerName)
 	connAttrs := providerConnectionAttributes{
-		Url:      url,
+		URL:      url,
 		Username: userName,
 		Password: password,
 	}

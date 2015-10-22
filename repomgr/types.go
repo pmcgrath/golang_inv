@@ -28,7 +28,7 @@ type provider interface {
 }
 
 type providerConnectionAttributes struct {
-	Url      string
+	URL      string
 	Username string
 	Password string
 }
@@ -37,7 +37,7 @@ type providerConnectionAttributes struct {
 type repositoryDetail struct {
 	ParentName   string
 	Name         string
-	ProtocolUrls map[string]string
+	ProtocolURLs map[string]string
 }
 
 type repositoryDetails []repositoryDetail

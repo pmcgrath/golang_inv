@@ -5,6 +5,7 @@
 		curl -v -u "pmcgrath:PASSWORD" -H "Accept: application/json" https://stash/rest/api/1.0/projects?start=0&limit=2
 		curl -v -u "pmcgrath:PASSWORD" -H "Accept: application/json" https://stash/rest/api/1.0/projects/ser/repos?start=0&limit=20
 */
+
 package main
 
 import (
@@ -14,7 +15,7 @@ import (
 	"time"
 )
 
-type createStashPagedUrl func(int, int) string
+type createStashPagedURL func(int, int) string
 
 type processStashMap func(map[string]interface{}) error
 
@@ -53,7 +54,7 @@ func (p stash) getRepos(parentName string) (repos repositoryDetails, err error) 
 func (p stash) getProjectKeys() (projectKeys []string, err error) {
 	err = p.processPagedData(
 		func(start, limit int) string {
-			return fmt.Sprintf("%s/rest/api/1.0/projects?start=%d&limit=%d", p.connAttrs.Url, start, limit)
+			return fmt.Sprintf("%s/rest/api/1.0/projects?start=%d&limit=%d", p.connAttrs.URL, start, limit)
 		},
 		func(project map[string]interface{}) error {
 			projectKey := project["key"].(string)
@@ -67,7 +68,7 @@ func (p stash) getProjectKeys() (projectKeys []string, err error) {
 func (p stash) getProjectRepos(projectKey string) (repos repositoryDetails, err error) {
 	err = p.processPagedData(
 		func(start, limit int) string {
-			return fmt.Sprintf("%s/rest/api/1.0/projects/%s/repos?start=%d&limit=%d", p.connAttrs.Url, projectKey, start, limit)
+			return fmt.Sprintf("%s/rest/api/1.0/projects/%s/repos?start=%d&limit=%d", p.connAttrs.URL, projectKey, start, limit)
 		},
 		func(repository map[string]interface{}) error {
 			logDebugln("About to process project repo data")
@@ -75,18 +76,18 @@ func (p stash) getProjectRepos(projectKey string) (repos repositoryDetails, err 
 			links := repository["links"].(map[string]interface{})
 			cloneLinks := links["clone"].([]interface{})
 
-			protocolUrls := make(map[string]string)
+			protocolURLs := make(map[string]string)
 			for _, cloneLink := range cloneLinks {
 				cloneLinkMap := cloneLink.(map[string]interface{})
 				name := cloneLinkMap["name"].(string)
 				href := cloneLinkMap["href"].(string)
-				protocolUrls[name] = href
+				protocolURLs[name] = href
 			}
 
 			repo := repositoryDetail{
 				ParentName:   projectKey,
 				Name:         name,
-				ProtocolUrls: protocolUrls,
+				ProtocolURLs: protocolURLs,
 			}
 			repos = append(repos, repo)
 
@@ -96,7 +97,7 @@ func (p stash) getProjectRepos(projectKey string) (repos repositoryDetails, err 
 	return
 }
 
-func (p stash) processPagedData(createUrl createStashPagedUrl, processValue processStashMap) (err error) {
+func (p stash) processPagedData(createURL createStashPagedURL, processValue processStashMap) (err error) {
 	timeoutInMS, start, limit := 15000, 0, 25
 
 	timeout := time.Duration(time.Duration(timeoutInMS) * time.Millisecond)
@@ -105,7 +106,7 @@ func (p stash) processPagedData(createUrl createStashPagedUrl, processValue proc
 	}
 
 	for {
-		url := createUrl(start, limit)
+		url := createURL(start, limit)
 		req, err := http.NewRequest("GET", url, nil)
 		req.SetBasicAuth(p.connAttrs.Username, p.connAttrs.Password)
 		req.Header.Set("Accept", "application/json")
