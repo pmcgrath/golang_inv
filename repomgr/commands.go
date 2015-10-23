@@ -271,7 +271,7 @@ func runCmdOnExistingRepos(command command, projectsDirectoryPath, remoteName st
 func displayGitCmdResults(results gitCmdResults) {
 	greenColour, redColour, resetColour := "\x1b[32m", "\x1b[31m", "\x1b[0m"
 	if runtime.GOOS == "windows" {
-		greenColour, redColour, resetColour = "", "", "m"
+		greenColour, redColour, resetColour = "", "", ""
 	}
 
 	for _, result := range results {
