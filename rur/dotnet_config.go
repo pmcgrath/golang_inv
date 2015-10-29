@@ -31,6 +31,14 @@ func (c configuration) String() string {
 			msSqlDatabase.UsesIntegratedSecurity)
 	}
 
+	res += "LogTargets\n"
+	for _, logTarget := range c.LogTargets {
+		res += fmt.Sprintf("\tName = %s, Facility = %s, Destination = %s\n",
+			logTarget.Name,
+			logTarget.Facility,
+			logTarget.Destination)
+	}
+
 	return res
 }
 
@@ -134,7 +142,7 @@ func transformNLogXml(nlog xmlNLog) []logTarget {
 
 		logTarget.Name = nlogRule.WriteTo
 		if nlogRule.AppendTo != "" {
-			logTarget.Name = nlogRule.WriteTo
+			logTarget.Name = nlogRule.AppendTo
 		}
 
 		for _, nlogTarget := range nlog.Targets.Targets {

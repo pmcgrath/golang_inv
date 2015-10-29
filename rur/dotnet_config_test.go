@@ -61,7 +61,7 @@ func TestTransformNLogXml(t *testing.T) {
 				xmlNLogRulesLogger{
 					Name:     "*",
 					MinLevel: "Trace",
-					WriteTo:  "gelfLogger",
+					AppendTo: "gelfLogger",
 				},
 			},
 		},
