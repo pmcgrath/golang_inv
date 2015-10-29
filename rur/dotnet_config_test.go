@@ -30,19 +30,19 @@ func TestTransformNLogXml(t *testing.T) {
 	source := xmlNLog{
 		Targets: xmlNLogTargets{
 			Targets: []xmlNLogTargetsTarget{
-				xmlNLogTargetsTarget{
+				{
 					Name:    "udpLogger",
 					Type:    "NlogViewer",
 					Address: "udp://localhost:7071",
 				},
-				xmlNLogTargetsTarget{
+				{
 					Name:       "gelfLogger",
 					Type:       "Gelf",
 					Facility:   "super_service",
 					GelfServer: "log.company.com",
 					Port:       "12201",
 				},
-				xmlNLogTargetsTarget{
+				{
 					Name:       "orphanedGelfLogger",
 					Type:       "Gelf",
 					Facility:   "super_service",
@@ -53,12 +53,12 @@ func TestTransformNLogXml(t *testing.T) {
 		},
 		Rules: xmlNLogRules{
 			Rules: []xmlNLogRulesLogger{
-				xmlNLogRulesLogger{
+				{
 					Name:     "*",
 					MinLevel: "Trace",
 					WriteTo:  "udpLogger",
 				},
-				xmlNLogRulesLogger{
+				{
 					Name:     "*",
 					MinLevel: "Trace",
 					AppendTo: "gelfLogger",
