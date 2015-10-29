@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"testing"
 )
 
@@ -50,7 +51,7 @@ func (c configuration) StringConcat() string {
 		buffer.WriteString(", Database = ")
 		buffer.WriteString(msSqlDatabase.Database)
 		buffer.WriteString(", Integrated Security = ")
-		buffer.WriteString(string(msSqlDatabase.UsesIntegratedSecurity))
+		buffer.WriteString(strconv.FormatBool(msSqlDatabase.UsesIntegratedSecurity))
 		buffer.WriteString("\n")
 	}
 
