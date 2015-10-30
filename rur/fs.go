@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
 func getAllSubDirectoryPaths(directoryPath string) ([]string, error) {
@@ -35,6 +36,9 @@ func getDirectoryFiles(directoryPath, pattern string) ([]string, error) {
 	}
 
 	for _, match := range matches {
+		// filepath.Glob function return Windows style seperators "\", but we use path.Split which does not seem to work so switch path seperators back to *nix tyle
+		match = strings.Replace(match, "\\", "/", -1)
+
 		matchFileInfo, err := os.Stat(match)
 		if err != nil {
 			return nil, err

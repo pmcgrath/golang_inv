@@ -56,32 +56,25 @@ type logTarget struct {
 
 func parseForService(directoryPath string) (configuration, error) {
 	serviceName := path.Base(directoryPath)
-
-	mainProjectDirectoryPath := path.Join(directoryPath, serviceName)
-	configFilePaths, err := getDirectoryFiles(mainProjectDirectoryPath, "*.config")
+	configFilePaths, err := getFSBasedRepoConfigFilePaths(directoryPath)
 	if err != nil {
 		return configuration{}, err
-	}
-	if len(configFilePaths) == 0 {
-		return configuration{}, fmt.Errorf("No config file exists for service %s", serviceName)
 	}
 
 	xmlConfigs := make(map[string]xmlConfiguration)
 	for _, configFilePath := range configFilePaths {
-		// Ignore packages.config, *.debug.config and *.release.config files
-		configFilePath = strings.Replace(configFilePath, "\\", "/", -1) // Cater for path.Split only working with *nix path seperators on Windows
 		_, configFileName := path.Split(configFilePath)
-		configFileName = strings.ToLower(configFileName)
-		if configFileName == "packages.config" || strings.HasSuffix(configFileName, ".debug.config") || strings.HasSuffix(configFileName, ".release.config") {
-			continue
-		}
 
 		xmlConfig, err := parseConfigXmlFile(configFilePath)
 		if err != nil {
 			return configuration{}, err
 		}
 
-		xmlConfigs[configFileName] = xmlConfig
+		// Add entry for file - assuming no clashes for file name casing
+		key := strings.ToLower(configFileName)
+		xmlConfigs[key] = xmlConfig
+
+		transformXmlConfig(serviceName, xmlConfig)
 	}
 
 	// pmcg HACK for now just deal with web.config

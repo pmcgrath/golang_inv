@@ -18,13 +18,18 @@ func main() {
 	}
 
 	for _, subDirectoryPath := range subDirectoryPaths {
-		configuration, err := parseForService(subDirectoryPath)
+		if !testIfFileExists(subDirectoryPath + "/dn-ci-runner.ps1") {
+			continue
+		}
+
+		//configuration, err := parseForService(subDirectoryPath)
+		_, err := parseForService(subDirectoryPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		fmt.Printf("\n\n*******\n")
-		fmt.Println(configuration)
-		return
+		//		fmt.Println(configuration)
+		//		return
 	}
 }
