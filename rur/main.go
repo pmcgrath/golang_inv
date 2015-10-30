@@ -22,14 +22,12 @@ func main() {
 			continue
 		}
 
-		//configuration, err := parseForService(subDirectoryPath)
-		_, err := parseForService(subDirectoryPath)
+		configuration, err := parseForService(subDirectoryPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		fmt.Printf("\n\n*******\n")
-		//		fmt.Println(configuration)
-		//		return
+		fmt.Println(configuration)
 	}
 }

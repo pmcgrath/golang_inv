@@ -44,14 +44,16 @@ func (c configuration) StringConcat() string {
 		buffer.WriteString("\n")
 	}
 
-	buffer.WriteString("MsSqlDatabases\n")
-	for _, msSqlDatabase := range c.MsSqlDatabases {
-		buffer.WriteString("\tHost = ")
-		buffer.WriteString(msSqlDatabase.Host)
-		buffer.WriteString(", Database = ")
-		buffer.WriteString(msSqlDatabase.Database)
+	buffer.WriteString("Databases\n")
+	for _, database := range c.Databases {
+		buffer.WriteString("\tType = ")
+		buffer.WriteString(database.Type)
+		buffer.WriteString(", Host = ")
+		buffer.WriteString(database.Host)
+		buffer.WriteString(", Name = ")
+		buffer.WriteString(database.Name)
 		buffer.WriteString(", Integrated Security = ")
-		buffer.WriteString(strconv.FormatBool(msSqlDatabase.UsesIntegratedSecurity))
+		buffer.WriteString(strconv.FormatBool(database.UsesIntegratedSecurity))
 		buffer.WriteString("\n")
 	}
 
@@ -77,12 +79,13 @@ func (c configuration) StringBuffer() string {
 		res += fmt.Sprintf("\t%s = %s\n", key, value)
 	}
 
-	res += "MsSqlDatabases\n"
-	for _, msSqlDatabase := range c.MsSqlDatabases {
-		res += fmt.Sprintf("\tHost = %s, Database = %s, Integrated Security = %t\n",
-			msSqlDatabase.Host,
-			msSqlDatabase.Database,
-			msSqlDatabase.UsesIntegratedSecurity)
+	res += "Databases\n"
+	for _, database := range c.Databases {
+		res += fmt.Sprintf("\tType = %s, Host = %s, Name = %s, Integrated Security = %t\n",
+			database.Type,
+			database.Host,
+			database.Name,
+			database.UsesIntegratedSecurity)
 	}
 
 	res += "LogTargets\n"
@@ -103,9 +106,9 @@ func runConfigurationStringerBenchmark(b *testing.B, stringerFuncWrapper func(*c
 			"Key1": "Value1",
 			"Key2": "Value2",
 		},
-		MsSqlDatabases: []msSqlDatabase{
-			{Host: "Source1", Database: "Database1", UsesIntegratedSecurity: false},
-			{Host: "Source2", Database: "Database2", UsesIntegratedSecurity: true},
+		Databases: []database{
+			{Type: "MSSQL", Host: "Source1", Name: "Database1", UsesIntegratedSecurity: false},
+			{Type: "EventStore", Host: "Source2", Name: "", UsesIntegratedSecurity: true},
 		},
 		LogTargets: []logTarget{
 			{Name: "Name1", Facility: "Facility1", Destination: "Destination1"},

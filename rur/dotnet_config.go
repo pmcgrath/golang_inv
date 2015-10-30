@@ -9,10 +9,10 @@ import (
 )
 
 type configuration struct {
-	ServiceName    string
-	AppSettings    map[string]string
-	MsSqlDatabases []msSqlDatabase
-	LogTargets     []logTarget
+	ServiceName string
+	AppSettings map[string]string
+	Databases   []database
+	LogTargets  []logTarget
 }
 
 func (c configuration) String() string {
@@ -23,12 +23,13 @@ func (c configuration) String() string {
 		res += fmt.Sprintf("\t%s = %s\n", key, value)
 	}
 
-	res += "MsSqlDatabases\n"
-	for _, msSqlDatabase := range c.MsSqlDatabases {
-		res += fmt.Sprintf("\tHost = %s, Database = %s, Integrated Security = %t\n",
-			msSqlDatabase.Host,
-			msSqlDatabase.Database,
-			msSqlDatabase.UsesIntegratedSecurity)
+	res += "Databases\n"
+	for _, database := range c.Databases {
+		res += fmt.Sprintf("\tType = %s, Host = %s, Name = %s, Integrated Security = %t\n",
+			database.Type,
+			database.Host,
+			database.Name,
+			database.UsesIntegratedSecurity)
 	}
 
 	res += "LogTargets\n"
@@ -42,9 +43,10 @@ func (c configuration) String() string {
 	return res
 }
 
-type msSqlDatabase struct {
+type database struct {
+	Type                   string
 	Host                   string
-	Database               string
+	Name                   string
 	UsesIntegratedSecurity bool
 }
 
@@ -104,28 +106,43 @@ func transformXmlConfig(serviceName string, xmlConfig xmlConfiguration) configur
 		appSettings[appSetting.Key] = appSetting.Value
 	}
 
-	msSqlDatabases := make([]msSqlDatabase, 0)
+	databases := make([]database, 0)
 	for _, connectionString := range xmlConfig.ConnectionStrings.Adds {
-		if connectionString.ProviderName == "" {
-			log.Printf("%s : Connection string with no provider name : %s\n", serviceName, connectionString.ConnectionString)
+		if strings.ToLower(connectionString.ProviderName) == "system.data.sqlclient" {
+			databases = append(databases, parseMsSqlConnectionString(connectionString.ConnectionString))
+			continue
 		}
-		if connectionString.ProviderName == "System.Data.SqlClient" {
-			msSqlDatabases = append(msSqlDatabases, parseMsSqlConnectionString(connectionString.ConnectionString))
+
+		// This is simlistic - have not had to probe\inspacet to determine if a db and if so what type of db - seems to be working at this stage so I'm done
+		switch strings.ToLower(connectionString.Name) {
+		case "eventstore":
+			// This only works if the name is consistent
+			databases = append(databases, parseEventStoreConnectionString(connectionString.ConnectionString))
+			continue
+		case "metrics":
+			// This only works if the name is consistent
+			databases = append(databases, parseInfluxDBConnectionString(connectionString.ConnectionString))
+			continue
+		case "rabbitmq":
+			// This isn't a database
+			continue
+		default:
+			log.Printf("%s : Connection string which we do not know how to process: name is [%s] and provider name is [%s]\n", serviceName, connectionString.Name, connectionString.ConnectionString)
 		}
 	}
 
 	logTargets := transformNLogXml(xmlConfig.NLog)
 
 	return configuration{
-		ServiceName:    serviceName,
-		AppSettings:    appSettings,
-		MsSqlDatabases: msSqlDatabases,
-		LogTargets:     logTargets,
+		ServiceName: serviceName,
+		AppSettings: appSettings,
+		Databases:   databases,
+		LogTargets:  logTargets,
 	}
 }
 
-func parseMsSqlConnectionString(value string) msSqlDatabase {
-	db := msSqlDatabase{}
+func parseMsSqlConnectionString(value string) database {
+	db := database{Type: "MSSQL"}
 
 	attributes := strings.Split(value, ";")
 	for _, attribute := range attributes {
@@ -142,11 +159,64 @@ func parseMsSqlConnectionString(value string) msSqlDatabase {
 		case "data source", "server":
 			db.Host = value
 		case "database", "initial catalog":
-			db.Database = value
+			db.Name = value
 		case "integrated security":
 			if strings.ToLower(value) == "sspi" {
 				db.UsesIntegratedSecurity = true
 			}
+		}
+	}
+
+	return db
+}
+
+func parseEventStoreConnectionString(value string) database {
+	db := database{Type: "EventStore"}
+
+	attributes := strings.Split(value, ";")
+	for _, attribute := range attributes {
+		// Cater for trailing ; in which case we will have an empty attribute
+		if strings.TrimSpace(attribute) == "" {
+			continue
+		}
+
+		attributeParts := strings.Split(attribute, "=")
+		key := strings.TrimSpace(strings.ToLower(attributeParts[0]))
+		value := strings.TrimSpace(attributeParts[1])
+
+		switch key {
+		case "connectto":
+			// Format is protocol://username:password@host:port i.e. tcp://admin:ASuperDupperStrongPassword@127.0.0.1:1113 cluster://admin:ASuperDupperStrongPassword@eventstore.dev.local:1113
+			hostSeperatorIndex := strings.Index(value, "@")
+			portSeperatorIndex := strings.LastIndex(value, ":") // Is port optional ? Use a default if not supplied
+			host := value[hostSeperatorIndex+1 : portSeperatorIndex]
+
+			db.Host = host
+		}
+	}
+
+	return db
+}
+
+func parseInfluxDBConnectionString(value string) database {
+	db := database{Type: "InfluxDB"}
+
+	attributes := strings.Split(value, ";")
+	for _, attribute := range attributes {
+		// Cater for trailing ; in which case we will have an empty attribute
+		if strings.TrimSpace(attribute) == "" {
+			continue
+		}
+
+		attributeParts := strings.Split(attribute, "=")
+		key := strings.TrimSpace(strings.ToLower(attributeParts[0]))
+		value := strings.TrimSpace(attributeParts[1])
+
+		switch key {
+		case "host":
+			db.Host = value
+		case "database":
+			db.Name = value
 		}
 	}
 

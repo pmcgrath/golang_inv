@@ -6,7 +6,7 @@ func TestParseMsSqlConnectionString(t *testing.T) {
 	for _, testCase := range []struct {
 		ConnectionString               string
 		ExpectedHost                   string
-		ExpectedDatabase               string
+		ExpectedName                   string
 		ExpectedUsesIntegratedSecurity bool
 	}{
 		{"Server=tcp:dbserver1; Database=myDB; MultiSubnetFailover=True; Integrated Security=SSPI;", "tcp:dbserver1", "myDB", true},
@@ -17,8 +17,8 @@ func TestParseMsSqlConnectionString(t *testing.T) {
 		if db.Host != testCase.ExpectedHost {
 			t.Errorf("Unexpected host, expected : %s actual : %s", testCase.ExpectedHost, db.Host)
 		}
-		if db.Database != testCase.ExpectedDatabase {
-			t.Errorf("Unexpected database, expected : %s actual : %s", testCase.ExpectedDatabase, db.Database)
+		if db.Name != testCase.ExpectedName {
+			t.Errorf("Unexpected name, expected : %s actual : %s", testCase.ExpectedName, db.Name)
 		}
 		if db.UsesIntegratedSecurity != testCase.ExpectedUsesIntegratedSecurity {
 			t.Errorf("Unexpected uses integrated security: %t", testCase.ExpectedUsesIntegratedSecurity, db.UsesIntegratedSecurity)
