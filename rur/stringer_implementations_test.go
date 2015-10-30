@@ -46,8 +46,8 @@ func (c configuration) StringConcat() string {
 
 	buffer.WriteString("MsSqlDatabases\n")
 	for _, msSqlDatabase := range c.MsSqlDatabases {
-		buffer.WriteString("\tSource = ")
-		buffer.WriteString(msSqlDatabase.Source)
+		buffer.WriteString("\tHost = ")
+		buffer.WriteString(msSqlDatabase.Host)
 		buffer.WriteString(", Database = ")
 		buffer.WriteString(msSqlDatabase.Database)
 		buffer.WriteString(", Integrated Security = ")
@@ -79,8 +79,8 @@ func (c configuration) StringBuffer() string {
 
 	res += "MsSqlDatabases\n"
 	for _, msSqlDatabase := range c.MsSqlDatabases {
-		res += fmt.Sprintf("\tSource = %s, Database = %s, Integrated Security = %t\n",
-			msSqlDatabase.Source,
+		res += fmt.Sprintf("\tHost = %s, Database = %s, Integrated Security = %t\n",
+			msSqlDatabase.Host,
 			msSqlDatabase.Database,
 			msSqlDatabase.UsesIntegratedSecurity)
 	}
@@ -104,8 +104,8 @@ func runConfigurationStringerBenchmark(b *testing.B, stringerFuncWrapper func(*c
 			"Key2": "Value2",
 		},
 		MsSqlDatabases: []msSqlDatabase{
-			{Source: "Source1", Database: "Database1", UsesIntegratedSecurity: false},
-			{Source: "Source2", Database: "Database2", UsesIntegratedSecurity: true},
+			{Host: "Source1", Database: "Database1", UsesIntegratedSecurity: false},
+			{Host: "Source2", Database: "Database2", UsesIntegratedSecurity: true},
 		},
 		LogTargets: []logTarget{
 			{Name: "Name1", Facility: "Facility1", Destination: "Destination1"},

@@ -25,8 +25,8 @@ func (c configuration) String() string {
 
 	res += "MsSqlDatabases\n"
 	for _, msSqlDatabase := range c.MsSqlDatabases {
-		res += fmt.Sprintf("\tSource = %s, Database = %s, Integrated Security = %t\n",
-			msSqlDatabase.Source,
+		res += fmt.Sprintf("\tHost = %s, Database = %s, Integrated Security = %t\n",
+			msSqlDatabase.Host,
 			msSqlDatabase.Database,
 			msSqlDatabase.UsesIntegratedSecurity)
 	}
@@ -43,7 +43,7 @@ func (c configuration) String() string {
 }
 
 type msSqlDatabase struct {
-	Source                 string
+	Host                   string
 	Database               string
 	UsesIntegratedSecurity bool
 }
@@ -58,26 +58,51 @@ func parseForService(directoryPath string) (configuration, error) {
 	serviceName := path.Base(directoryPath)
 
 	mainProjectDirectoryPath := path.Join(directoryPath, serviceName)
-	webConfigFilePath := path.Join(mainProjectDirectoryPath, "web.config")
-	webConfigFileExists := testIfFileExists(webConfigFilePath)
-	if !webConfigFileExists {
-		return configuration{}, fmt.Errorf("No web.config file exists for service %s", serviceName)
-	}
-
-	webConfigFile, err := os.Open(webConfigFilePath)
+	configFilePaths, err := getDirectoryFiles(mainProjectDirectoryPath, "*.config")
 	if err != nil {
 		return configuration{}, err
 	}
-	defer webConfigFile.Close()
-
-	xmlConfig, err := parseConfigXmlContent(webConfigFile)
-	if err != nil {
-		return configuration{}, err
+	if len(configFilePaths) == 0 {
+		return configuration{}, fmt.Errorf("No config file exists for service %s", serviceName)
 	}
 
-	config := transformXmlConfig(serviceName, xmlConfig)
+	xmlConfigs := make(map[string]xmlConfiguration)
+	for _, configFilePath := range configFilePaths {
+		// Ignore packages.config, *.debug.config and *.release.config files
+		configFilePath = strings.Replace(configFilePath, "\\", "/", -1) // Cater for path.Split only working with *nix path seperators on Windows
+		_, configFileName := path.Split(configFilePath)
+		configFileName = strings.ToLower(configFileName)
+		if configFileName == "packages.config" || strings.HasSuffix(configFileName, ".debug.config") || strings.HasSuffix(configFileName, ".release.config") {
+			continue
+		}
+
+		xmlConfig, err := parseConfigXmlFile(configFilePath)
+		if err != nil {
+			return configuration{}, err
+		}
+
+		xmlConfigs[configFileName] = xmlConfig
+	}
+
+	// pmcg HACK for now just deal with web.config
+	config := transformXmlConfig(serviceName, xmlConfigs["web.config"])
 
 	return config, nil
+}
+
+func parseConfigXmlFile(filePath string) (xmlConfiguration, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return xmlConfiguration{}, err
+	}
+	defer file.Close()
+
+	xmlConfig, err := parseConfigXmlContent(file)
+	if err != nil {
+		return xmlConfig, err
+	}
+
+	return xmlConfig, nil
 }
 
 func transformXmlConfig(serviceName string, xmlConfig xmlConfiguration) configuration {
@@ -122,7 +147,7 @@ func parseMsSqlConnectionString(value string) msSqlDatabase {
 
 		switch key {
 		case "data source", "server":
-			db.Source = value
+			db.Host = value
 		case "database", "initial catalog":
 			db.Database = value
 		case "integrated security":

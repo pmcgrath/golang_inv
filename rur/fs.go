@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 )
 
 func getAllSubDirectoryPaths(directoryPath string) ([]string, error) {
@@ -22,6 +23,29 @@ func getAllSubDirectoryPaths(directoryPath string) ([]string, error) {
 	}
 
 	return dirs, nil
+}
+
+func getDirectoryFiles(directoryPath, pattern string) ([]string, error) {
+	globPattern := path.Join(directoryPath, pattern)
+
+	files := []string{}
+	matches, err := filepath.Glob(globPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, match := range matches {
+		matchFileInfo, err := os.Stat(match)
+		if err != nil {
+			return nil, err
+		}
+
+		if !matchFileInfo.Mode().IsDir() {
+			files = append(files, match)
+		}
+	}
+
+	return files, nil
 }
 
 func testIfFileExists(filePath string) bool {

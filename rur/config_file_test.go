@@ -26,5 +26,6 @@ func TestParseConfigXmlContentForTransformation(t *testing.T) {
 	}
 	t.Logf("-> %#v", config.AppSettings.Adds)
 	t.Logf("-> %#v", config.ConnectionStrings.Adds)
+	t.Logf("-> transform %#v", config.ConnectionStrings.Transform)
 	t.Logf("-> %#v", config.NLog.Targets)
 }

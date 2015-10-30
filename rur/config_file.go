@@ -18,13 +18,15 @@ type xmlConfiguration struct {
 }
 
 type xmlAppSettings struct {
-	XMLName xml.Name           `xml:"appSettings"`
-	Adds    []xmlAppSettingAdd `xml:"add"`
+	XMLName   xml.Name           `xml:"appSettings"`
+	Transform string             `xml:"Transform,attr"`
+	Adds      []xmlAppSettingAdd `xml:"add"`
 }
 
 type xmlConnectionStrings struct {
-	XMLName xml.Name                 `xml:"connectionStrings"`
-	Adds    []xmlConnectionStringAdd `xml:"add"`
+	XMLName   xml.Name                 `xml:"connectionStrings"`
+	Transform string                   `xml:"Transform,attr"`
+	Adds      []xmlConnectionStringAdd `xml:"add"`
 }
 
 type xmlNLog struct {
@@ -34,9 +36,10 @@ type xmlNLog struct {
 }
 
 type xmlAppSettingAdd struct {
-	XMLName xml.Name `xml:"add"`
-	Key     string   `xml:"key,attr"`
-	Value   string   `xml:"value,attr"`
+	XMLName   xml.Name `xml:"add"`
+	Key       string   `xml:"key,attr"`
+	Value     string   `xml:"value,attr"`
+	Transform string   `xml:"Transform,attr"`
 }
 
 type xmlConnectionStringAdd struct {
@@ -44,11 +47,13 @@ type xmlConnectionStringAdd struct {
 	Name             string   `xml:"name,attr"`
 	ConnectionString string   `xml:"connectionString,attr"`
 	ProviderName     string   `xml:"providerName,attr"`
+	Transform        string   `xml:"Transform,attr"`
 }
 
 type xmlNLogTargets struct {
-	XMLName xml.Name               `xml:"targets"`
-	Targets []xmlNLogTargetsTarget `xml:"target"`
+	XMLName   xml.Name               `xml:"targets"`
+	Transform string                 `xml:"Transform,attr"`
+	Targets   []xmlNLogTargetsTarget `xml:"target"`
 }
 
 type xmlNLogTargetsTarget struct {
@@ -61,19 +66,22 @@ type xmlNLogTargetsTarget struct {
 	Port           string   `xml:"port,attr"`
 	MaxChunkSize   string   `xml:"maxchunksize,attr"`
 	GrayLogVersion string   `xml:"graylogversion,attr"`
+	Transform      string   `xml:"Transform,attr"`
 }
 
 type xmlNLogRules struct {
-	XMLName xml.Name             `xml:"rules"`
-	Rules   []xmlNLogRulesLogger `xml:"logger"`
+	XMLName   xml.Name             `xml:"rules"`
+	Transform string               `xml:"Transform,attr"`
+	Rules     []xmlNLogRulesLogger `xml:"logger"`
 }
 
 type xmlNLogRulesLogger struct {
-	XMLName  xml.Name `xml:"logger"`
-	Name     string   `xml:"name,attr"`
-	MinLevel string   `xml:"minLevel,attr"`
-	WriteTo  string   `xml:"writeTo,attr"`
-	AppendTo string   `xml:"appendTo,attr"`
+	XMLName   xml.Name `xml:"logger"`
+	Name      string   `xml:"name,attr"`
+	MinLevel  string   `xml:"minLevel,attr"`
+	WriteTo   string   `xml:"writeTo,attr"`
+	AppendTo  string   `xml:"appendTo,attr"`
+	Transform string   `xml:"Transform,attr"`
 }
 
 func parseConfigXmlContent(reader io.Reader) (xmlConfiguration, error) {

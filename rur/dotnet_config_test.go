@@ -5,7 +5,7 @@ import "testing"
 func TestParseMsSqlConnectionString(t *testing.T) {
 	for _, testCase := range []struct {
 		ConnectionString               string
-		ExpectedSource                 string
+		ExpectedHost                   string
 		ExpectedDatabase               string
 		ExpectedUsesIntegratedSecurity bool
 	}{
@@ -14,8 +14,8 @@ func TestParseMsSqlConnectionString(t *testing.T) {
 	} {
 		db := parseMsSqlConnectionString(testCase.ConnectionString)
 
-		if db.Source != testCase.ExpectedSource {
-			t.Errorf("Unexpected source, expected : %s actual : %s", testCase.ExpectedSource, db.Source)
+		if db.Host != testCase.ExpectedHost {
+			t.Errorf("Unexpected host, expected : %s actual : %s", testCase.ExpectedHost, db.Host)
 		}
 		if db.Database != testCase.ExpectedDatabase {
 			t.Errorf("Unexpected database, expected : %s actual : %s", testCase.ExpectedDatabase, db.Database)

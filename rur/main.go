@@ -25,5 +25,6 @@ func main() {
 
 		fmt.Printf("\n\n*******\n")
 		fmt.Println(configuration)
+		return
 	}
 }
