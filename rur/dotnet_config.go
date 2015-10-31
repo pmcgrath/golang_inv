@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -25,19 +26,12 @@ func (c configuration) String() string {
 
 	res += "Databases\n"
 	for _, database := range c.Databases {
-		res += fmt.Sprintf("\tType = %s, Host = %s, Name = %s, Integrated Security = %t\n",
-			database.Type,
-			database.Host,
-			database.Name,
-			database.UsesIntegratedSecurity)
+		res += fmt.Sprintf("\t%s\n", database)
 	}
 
 	res += "LogTargets\n"
 	for _, logTarget := range c.LogTargets {
-		res += fmt.Sprintf("\tName = %s, Facility = %s, Destination = %s\n",
-			logTarget.Name,
-			logTarget.Facility,
-			logTarget.Destination)
+		res += fmt.Sprintf("\t%s\n", logTarget)
 	}
 
 	return res
@@ -46,14 +40,33 @@ func (c configuration) String() string {
 type database struct {
 	Type                   string
 	Host                   string
+	Port                   int
 	Name                   string
 	UsesIntegratedSecurity bool
+	ConnectionString       string
+}
+
+func (d database) String() string {
+	return fmt.Sprintf("Type = %s, Host = %s, Port = %d, Name = %s, Integrated Security = %t, ConnectionString = %s",
+		d.Type,
+		d.Host,
+		d.Port,
+		d.Name,
+		d.UsesIntegratedSecurity,
+		d.ConnectionString)
 }
 
 type logTarget struct {
 	Name        string
 	Facility    string
 	Destination string
+}
+
+func (t logTarget) String() string {
+	return fmt.Sprintf("Name = %s, Facility = %s, Destination = %s",
+		t.Name,
+		t.Facility,
+		t.Destination)
 }
 
 func parseForService(directoryPath string) (configuration, error) {
@@ -119,7 +132,7 @@ func transformXmlConfig(serviceName string, xmlConfig xmlConfiguration) configur
 			// This only works if the name is consistent
 			databases = append(databases, parseEventStoreConnectionString(connectionString.ConnectionString))
 			continue
-		case "metrics":
+		case "metric", "metrics":
 			// This only works if the name is consistent
 			databases = append(databases, parseInfluxDBConnectionString(connectionString.ConnectionString))
 			continue
@@ -142,7 +155,7 @@ func transformXmlConfig(serviceName string, xmlConfig xmlConfiguration) configur
 }
 
 func parseMsSqlConnectionString(value string) database {
-	db := database{Type: "MSSQL"}
+	db := database{Type: "MSSQL", ConnectionString: value}
 
 	attributes := strings.Split(value, ";")
 	for _, attribute := range attributes {
@@ -171,7 +184,7 @@ func parseMsSqlConnectionString(value string) database {
 }
 
 func parseEventStoreConnectionString(value string) database {
-	db := database{Type: "EventStore"}
+	db := database{Type: "EventStore", ConnectionString: value}
 
 	attributes := strings.Split(value, ";")
 	for _, attribute := range attributes {
@@ -190,8 +203,10 @@ func parseEventStoreConnectionString(value string) database {
 			hostSeperatorIndex := strings.Index(value, "@")
 			portSeperatorIndex := strings.LastIndex(value, ":") // Is port optional ? Use a default if not supplied
 			host := value[hostSeperatorIndex+1 : portSeperatorIndex]
+			port, _ := strconv.Atoi(value[portSeperatorIndex+1:])
 
 			db.Host = host
+			db.Port = port
 		}
 	}
 
@@ -199,7 +214,7 @@ func parseEventStoreConnectionString(value string) database {
 }
 
 func parseInfluxDBConnectionString(value string) database {
-	db := database{Type: "InfluxDB"}
+	db := database{Type: "InfluxDB", ConnectionString: value}
 
 	attributes := strings.Split(value, ";")
 	for _, attribute := range attributes {
@@ -215,6 +230,9 @@ func parseInfluxDBConnectionString(value string) database {
 		switch key {
 		case "host":
 			db.Host = value
+		case "port":
+			port, _ := strconv.Atoi(value)
+			db.Port = port
 		case "database":
 			db.Name = value
 		}
