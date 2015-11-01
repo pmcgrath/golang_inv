@@ -9,17 +9,28 @@ import (
 	"strings"
 )
 
+type serviceConfiguration struct {
+	Name         string
+	Environments map[string]configuration
+}
+
+func (s serviceConfiguration) String() string {
+	res := s.Name + "\n"
+	for env, config := range s.Environments {
+		res += fmt.Sprintf("**%s\n%s\n", env, config)
+	}
+
+	return res
+}
+
 type configuration struct {
-	ServiceName string
 	AppSettings map[string]string
 	Databases   []database
-	LogTargets  []logTarget
+	Loggers     []logger
 }
 
 func (c configuration) String() string {
-	res := c.ServiceName + "\n"
-
-	res += "AppSettings\n"
+	res := "AppSettings\n"
 	for key, value := range c.AppSettings {
 		res += fmt.Sprintf("\t%s = %s\n", key, value)
 	}
@@ -29,9 +40,9 @@ func (c configuration) String() string {
 		res += fmt.Sprintf("\t%s\n", database)
 	}
 
-	res += "LogTargets\n"
-	for _, logTarget := range c.LogTargets {
-		res += fmt.Sprintf("\t%s\n", logTarget)
+	res += "Loggers\n"
+	for _, logger := range c.Loggers {
+		res += fmt.Sprintf("\t%s\n", logger)
 	}
 
 	return res
@@ -56,44 +67,73 @@ func (d database) String() string {
 		d.ConnectionString)
 }
 
-type logTarget struct {
+type logger struct {
 	Name        string
+	Level       string
+	Target      string
 	Facility    string
 	Destination string
 }
 
-func (t logTarget) String() string {
-	return fmt.Sprintf("Name = %s, Facility = %s, Destination = %s",
-		t.Name,
-		t.Facility,
-		t.Destination)
+func (l logger) String() string {
+	return fmt.Sprintf("Name = %s, Level = %s, Target = %s, Facility = %s, Destination = %s",
+		l.Name,
+		l.Level,
+		l.Target,
+		l.Facility,
+		l.Destination)
 }
 
-func parseForService(directoryPath string) (configuration, error) {
-	serviceName := path.Base(directoryPath)
-	configFilePaths, err := getFSBasedRepoConfigFilePaths(directoryPath)
-	if err != nil {
-		return configuration{}, err
+func parseForService(directoryPath string) (serviceConfiguration, error) {
+	config := serviceConfiguration{
+		Name:         path.Base(directoryPath),
+		Environments: make(map[string]configuration),
 	}
 
-	xmlConfigs := make(map[string]xmlConfiguration)
+	configFilePaths, err := getFSBasedRepoConfigFilePaths(directoryPath)
+	if err != nil {
+		return config, err
+	}
+
+	baseConfigFilePath := ""
 	for _, configFilePath := range configFilePaths {
+		_, configFileName := path.Split(configFilePath)
+		configFileName = strings.ToLower(configFileName)
+		if configFileName == "web.config" || configFileName == "app.config" {
+			baseConfigFilePath = configFilePath
+		}
+	}
+	if baseConfigFilePath == "" {
+		return config, fmt.Errorf("No base config file found, must have a web.config or app.config which is the base config file")
+	}
+
+	baseXmlConfig, err := parseConfigXmlFile(baseConfigFilePath)
+	if err != nil {
+		return config, err
+	}
+	baseConfig := transformXmlConfig(baseXmlConfig)
+	config.Environments["dev"] = baseConfig
+
+	for _, configFilePath := range configFilePaths {
+		if configFilePath == baseConfigFilePath {
+			continue
+		}
+
 		_, configFileName := path.Split(configFilePath)
 
 		xmlConfig, err := parseConfigXmlFile(configFilePath)
 		if err != nil {
-			return configuration{}, err
+			return config, err
 		}
 
+		mergedXmlConfig := mergeConfigXmlFileContents(baseXmlConfig, xmlConfig)
+		envConfig := transformXmlConfig(mergedXmlConfig)
+
 		// Add entry for file - assuming no clashes for file name casing
-		key := strings.ToLower(configFileName)
-		xmlConfigs[key] = xmlConfig
-
-		transformXmlConfig(serviceName, xmlConfig)
+		env := strings.ToLower(configFileName)
+		env = env[0:strings.Index(env, ".")]
+		config.Environments[env] = envConfig
 	}
-
-	// pmcg HACK for now just deal with web.config
-	config := transformXmlConfig(serviceName, xmlConfigs["web.config"])
 
 	return config, nil
 }
@@ -113,7 +153,7 @@ func parseConfigXmlFile(filePath string) (xmlConfiguration, error) {
 	return xmlConfig, nil
 }
 
-func transformXmlConfig(serviceName string, xmlConfig xmlConfiguration) configuration {
+func transformXmlConfig(xmlConfig xmlConfiguration) configuration {
 	appSettings := make(map[string]string, len(xmlConfig.AppSettings.Adds))
 	for _, appSetting := range xmlConfig.AppSettings.Adds {
 		appSettings[appSetting.Key] = appSetting.Value
@@ -126,7 +166,7 @@ func transformXmlConfig(serviceName string, xmlConfig xmlConfiguration) configur
 			continue
 		}
 
-		// This is simlistic - have not had to probe\inspacet to determine if a db and if so what type of db - seems to be working at this stage so I'm done
+		// This is simlistic - have not had to probe\inspect to determine if a db and if so what type of db - seems to be working at this stage so I'm done
 		switch strings.ToLower(connectionString.Name) {
 		case "eventstore":
 			// This only works if the name is consistent
@@ -140,17 +180,16 @@ func transformXmlConfig(serviceName string, xmlConfig xmlConfiguration) configur
 			// This isn't a database
 			continue
 		default:
-			log.Printf("%s : Connection string which we do not know how to process: name is [%s] and provider name is [%s]\n", serviceName, connectionString.Name, connectionString.ConnectionString)
+			log.Printf("Connection string which we do not know how to process: name is [%s] and provider name is [%s]\n", connectionString.Name, connectionString.ConnectionString)
 		}
 	}
 
-	logTargets := transformNLogXml(xmlConfig.NLog)
+	loggers := transformNLogXml(xmlConfig.NLog)
 
 	return configuration{
-		ServiceName: serviceName,
 		AppSettings: appSettings,
 		Databases:   databases,
-		LogTargets:  logTargets,
+		Loggers:     loggers,
 	}
 }
 
@@ -241,30 +280,33 @@ func parseInfluxDBConnectionString(value string) database {
 	return db
 }
 
-func transformNLogXml(nlog xmlNLog) []logTarget {
-	logTargets := make([]logTarget, 0)
-	for _, nlogRule := range nlog.Rules.Rules {
-		logTarget := logTarget{}
+func transformNLogXml(nlog xmlNLog) []logger {
+	loggers := make([]logger, 0)
+	for _, nlogLogger := range nlog.Rules.Loggers {
+		logger := logger{
+			Name:  nlogLogger.Name,
+			Level: nlogLogger.MinLevel,
+		}
 
-		logTarget.Name = nlogRule.WriteTo
-		if nlogRule.AppendTo != "" {
-			logTarget.Name = nlogRule.AppendTo
+		logger.Target = nlogLogger.WriteTo
+		if nlogLogger.AppendTo != "" {
+			logger.Target = nlogLogger.AppendTo
 		}
 
 		for _, nlogTarget := range nlog.Targets.Targets {
-			if nlogTarget.Name == logTarget.Name {
-				logTarget.Facility = nlogTarget.Facility
-				logTarget.Destination = nlogTarget.GelfServer
+			if nlogTarget.Name == logger.Target {
+				logger.Facility = nlogTarget.Facility
+				logger.Destination = nlogTarget.GelfServer
 				if nlogTarget.Address != "" {
 					// Case of local udp target
-					logTarget.Destination = nlogTarget.Address
+					logger.Destination = nlogTarget.Address
 				}
 				break
 			}
 		}
 
-		logTargets = append(logTargets, logTarget)
+		loggers = append(loggers, logger)
 	}
 
-	return logTargets
+	return loggers
 }

@@ -4,7 +4,6 @@ import "testing"
 
 func TestConfigurationString(t *testing.T) {
 	config := configuration{
-		ServiceName: "Ted",
 		AppSettings: map[string]string{
 			"Key1": "Value1",
 			"Key2": "value2"},
@@ -12,8 +11,8 @@ func TestConfigurationString(t *testing.T) {
 			database{Type: "SuperDB1", Host: "MyDBServer", Port: 1433, Name: "MyDB1", UsesIntegratedSecurity: false, ConnectionString: "connect to MyDB1"},
 			database{Type: "SuperDB2", Host: "MyDBServer", Port: 0, Name: "MyDB2", UsesIntegratedSecurity: false, ConnectionString: "connect to MyDB2"},
 		},
-		LogTargets: []logTarget{
-			logTarget{Name: "log", Facility: "myservice", Destination: "logs.service.com"},
+		Loggers: []logger{
+			logger{Name: "*", Level: "INFO", Target: "Gelf", Facility: "myservice", Destination: "logs.service.com"},
 		},
 	}
 
@@ -136,7 +135,7 @@ func TestTransformNLogXml(t *testing.T) {
 			},
 		},
 		Rules: xmlNLogRules{
-			Rules: []xmlNLogRulesLogger{
+			Loggers: []xmlNLogRulesLogger{
 				{
 					Name:     "*",
 					MinLevel: "Trace",

@@ -30,9 +30,10 @@ type xmlConnectionStrings struct {
 }
 
 type xmlNLog struct {
-	XMLName xml.Name       `xml:"nlog"`
-	Targets xmlNLogTargets `xml:"targets"`
-	Rules   xmlNLogRules   `xml:"rules"`
+	XMLName   xml.Name       `xml:"nlog"`
+	Transform string         `xml:"Transform,attr"`
+	Targets   xmlNLogTargets `xml:"targets"`
+	Rules     xmlNLogRules   `xml:"rules"`
 }
 
 type xmlAppSettingAdd struct {
@@ -72,7 +73,7 @@ type xmlNLogTargetsTarget struct {
 type xmlNLogRules struct {
 	XMLName   xml.Name             `xml:"rules"`
 	Transform string               `xml:"Transform,attr"`
-	Rules     []xmlNLogRulesLogger `xml:"logger"`
+	Loggers   []xmlNLogRulesLogger `xml:"logger"`
 }
 
 type xmlNLogRulesLogger struct {
@@ -91,4 +92,125 @@ func parseConfigXmlContent(reader io.Reader) (xmlConfiguration, error) {
 	}
 
 	return config, nil
+}
+
+func mergeConfigXmlFileContents(base, update xmlConfiguration) xmlConfiguration {
+	// This variable is just for clarity, as thei base value is passed by value - we could just mutate and return it
+	merged := base
+
+	// AppSettings
+	if update.AppSettings.Transform == "Replace" {
+		merged.AppSettings = update.AppSettings
+	} else {
+		// Deal with Inserts and SetAttributes
+		for _, updateItem := range update.AppSettings.Adds {
+			if updateItem.Transform == "Insert" {
+				merged.AppSettings.Adds = append(merged.AppSettings.Adds, updateItem)
+			} else if updateItem.Transform == "SetAttributes" {
+				for index, mergedItem := range merged.AppSettings.Adds {
+					if mergedItem.Key == updateItem.Key {
+						merged.AppSettings.Adds[index].Value = updateItem.Value
+					}
+				}
+			}
+		}
+	}
+
+	// ConnectionStrings
+	if update.ConnectionStrings.Transform == "Replace" {
+		merged.ConnectionStrings = update.ConnectionStrings
+	} else {
+		// Deal with Inserts and SetAttributes
+		for _, updateItem := range update.ConnectionStrings.Adds {
+			if updateItem.Transform == "Insert" {
+				merged.ConnectionStrings.Adds = append(merged.ConnectionStrings.Adds, updateItem)
+			} else if updateItem.Transform == "SetAttributes" {
+				for index, mergedItem := range merged.ConnectionStrings.Adds {
+					if mergedItem.Name == updateItem.Name {
+						// Only update if not empty
+						if updateItem.ConnectionString != "" {
+							merged.ConnectionStrings.Adds[index].ConnectionString = updateItem.ConnectionString
+						}
+						if updateItem.ProviderName != "" {
+							merged.ConnectionStrings.Adds[index].ProviderName = updateItem.ProviderName
+						}
+					}
+				}
+			}
+		}
+
+	}
+
+	// NLog
+	if update.NLog.Transform == "Replace" {
+		merged.NLog = update.NLog
+	} else {
+		// Targets
+		if update.NLog.Targets.Transform == "Replace" {
+			merged.NLog.Targets = update.NLog.Targets
+		} else {
+			// Deal with Inserts and SetAttributes
+			for _, updateItem := range merged.NLog.Targets.Targets {
+				if updateItem.Transform == "Insert" {
+					merged.NLog.Targets.Targets = append(merged.NLog.Targets.Targets, updateItem)
+				} else if updateItem.Transform == "SetAttributes" {
+					for index, mergedItem := range merged.NLog.Targets.Targets {
+						if mergedItem.Name == updateItem.Name {
+							// Only update if not empty - revisit to use reflection
+							if updateItem.Type != "" {
+								merged.NLog.Targets.Targets[index].Type = updateItem.Type
+							}
+							if updateItem.Address != "" {
+								merged.NLog.Targets.Targets[index].Address = updateItem.Address
+							}
+							if updateItem.Facility != "" {
+								merged.NLog.Targets.Targets[index].Facility = updateItem.Facility
+							}
+							if updateItem.GelfServer != "" {
+								merged.NLog.Targets.Targets[index].GelfServer = updateItem.GelfServer
+							}
+							if updateItem.Port != "" {
+								merged.NLog.Targets.Targets[index].Port = updateItem.Port
+							}
+							if updateItem.MaxChunkSize != "" {
+								merged.NLog.Targets.Targets[index].MaxChunkSize = updateItem.MaxChunkSize
+							}
+							if updateItem.GrayLogVersion != "" {
+								merged.NLog.Targets.Targets[index].GrayLogVersion = updateItem.GrayLogVersion
+							}
+						}
+					}
+				}
+			}
+		}
+		// Rules
+		if update.NLog.Rules.Transform == "Replace" {
+			merged.NLog.Rules = update.NLog.Rules
+		} else {
+			// Deal with Inserts and SetAttributes
+			for _, updateItem := range merged.NLog.Rules.Loggers {
+				if updateItem.Transform == "Insert" {
+					merged.NLog.Rules.Loggers = append(merged.NLog.Rules.Loggers, updateItem)
+				} else if updateItem.Transform == "SetAttributes" {
+					for index, mergedItem := range merged.NLog.Rules.Loggers {
+						if mergedItem.Name == updateItem.Name {
+							// Only update if not empty - revisit to use reflection
+							if updateItem.MinLevel != "" {
+								merged.NLog.Rules.Loggers[index].MinLevel = updateItem.MinLevel
+							}
+							if updateItem.WriteTo != "" {
+								merged.NLog.Rules.Loggers[index].WriteTo = updateItem.WriteTo
+							}
+							if updateItem.AppendTo != "" {
+								merged.NLog.Rules.Loggers[index].AppendTo = updateItem.AppendTo
+							}
+						}
+					}
+				}
+			}
+
+		}
+	}
+
+	return merged
 }

@@ -46,7 +46,7 @@ func TestParseConfigXmlContent(t *testing.T) {
 	// Nlog
 	logTargets := config.NLog.Targets.Targets
 	if len(logTargets) != 2 {
-		t.Errorf("Unexpected logTargets count, expected %d but got %d", 2, len(logTargets))
+		t.Errorf("Unexpected log targets count, expected %d but got %d", 2, len(logTargets))
 	}
 	if !assertLogTargetMatch(logTargets[0], "UdpOutlet", "NLogViewer", "udp://localhost:7071", "", "", "", "", "", "") {
 		t.Errorf("Unexpected logTargets[0] %#v", logTargets[0])
@@ -54,15 +54,15 @@ func TestParseConfigXmlContent(t *testing.T) {
 	if !assertLogTargetMatch(logTargets[1], "Gelf", "Gelf", "", "log.company.com", "ServiceABC", "12201", "8154", "0.9.6", "") {
 		t.Errorf("Unexpected logTargets[1] %#v", logTargets[1])
 	}
-	logRules := config.NLog.Rules.Rules
-	if len(logRules) != 2 {
-		t.Errorf("Unexpected logRules count, expected %d but got %d", 2, len(logRules))
+	logLoggers := config.NLog.Rules.Loggers
+	if len(logLoggers) != 2 {
+		t.Errorf("Unexpected logLoggers count, expected %d but got %d", 2, len(logLoggers))
 	}
-	if !assertLogRuleMatch(logRules[0], "*", "Trace", "UdpOutlet", "", "") {
-		t.Errorf("Unexpected logRules[0] %#v", logRules[0])
+	if !assertLogLoggerMatch(logLoggers[0], "*", "Trace", "UdpOutlet", "", "") {
+		t.Errorf("Unexpected logLoggers[0] %#v", logLoggers[0])
 	}
-	if !assertLogRuleMatch(logRules[1], "*", "Trace", "", "Gelf", "") {
-		t.Errorf("Unexpected logRules[1] %#v", logRules[1])
+	if !assertLogLoggerMatch(logLoggers[1], "*", "Trace", "", "Gelf", "") {
+		t.Errorf("Unexpected logLoggers1] %#v", logLoggers[1])
 	}
 }
 
@@ -107,21 +107,44 @@ func TestParseConfigXmlContentForTransformationFile(t *testing.T) {
 	// Nlog
 	logTargets := config.NLog.Targets.Targets
 	if len(logTargets) != 1 {
-		t.Errorf("Unexpected logTargets count, expected %d but got %d", 2, len(logTargets))
+		t.Errorf("Unexpected log targets count, expected %d but got %d", 2, len(logTargets))
 	}
 	if !assertLogTargetMatch(logTargets[0], "Gelf", "", "", "log.company.com", "", "", "", "", "SetAttributes") {
 		t.Errorf("Unexpected logTargets[0] %#v", logTargets[0])
 	}
-	logRules := config.NLog.Rules.Rules
-	if len(logRules) != 2 {
-		t.Errorf("Unexpected logRules count, expected %d but got %d", 2, len(logRules))
+	logLoggers := config.NLog.Rules.Loggers
+	if len(logLoggers) != 2 {
+		t.Errorf("Unexpected logLoggers count, expected %d but got %d", 2, len(logLoggers))
 	}
-	if !assertLogRuleMatch(logRules[0], "*", "Warn", "", "GelfOld", "") {
-		t.Errorf("Unexpected logRules[0] %#v", logRules[0])
+	if !assertLogLoggerMatch(logLoggers[0], "*", "Warn", "", "GelfOld", "") {
+		t.Errorf("Unexpected logLoggers[0] %#v", logLoggers[0])
 	}
-	if !assertLogRuleMatch(logRules[1], "*", "Debug", "", "Gelf", "") {
-		t.Errorf("Unexpected logRules[1] %#v", logRules[1])
+	if !assertLogLoggerMatch(logLoggers[1], "*", "Debug", "", "Gelf", "") {
+		t.Errorf("Unexpected logLoggers[1] %#v", logLoggers[1])
 	}
+}
+
+func TestMergeConfigXmlFileContents(t *testing.T) {
+	content := bytes.NewBufferString(configContentSample)
+	base, err := parseConfigXmlContent(content)
+	if err != nil {
+		t.Errorf("Unexpected parse error for base : %#v", err)
+	}
+
+	content = bytes.NewBufferString(configContentTransformation)
+	update, err := parseConfigXmlContent(content)
+	if err != nil {
+		t.Errorf("Unexpected parse error for update : %#v", err)
+	}
+
+	t.Logf("\n\n**** base before\n%s", transformXmlConfig(base))
+	//	update.AppSettings.Transform = "Replace"
+	update.ConnectionStrings.Transform = "Replace"
+	merged := mergeConfigXmlFileContents(base, update)
+
+	t.Logf("\n\nbase after\n%s", transformXmlConfig(base))
+	t.Logf("\n\nupdate\n%s", transformXmlConfig(update))
+	t.Logf("\n\nmerged\n%s", transformXmlConfig(merged))
 }
 
 func assertAppSettingMatch(actual xmlAppSettingAdd, key, value, transform string) bool {
@@ -149,7 +172,7 @@ func assertLogTargetMatch(actual xmlNLogTargetsTarget, name, theType, address, g
 		actual.Transform == transform
 }
 
-func assertLogRuleMatch(actual xmlNLogRulesLogger, name, minLevel, writeTo, appendTo, transform string) bool {
+func assertLogLoggerMatch(actual xmlNLogRulesLogger, name, minLevel, writeTo, appendTo, transform string) bool {
 	return actual.Name == name &&
 		actual.MinLevel == minLevel &&
 		actual.WriteTo == writeTo &&

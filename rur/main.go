@@ -7,10 +7,7 @@ import (
 )
 
 func main() {
-	connectionString := "Server=tcp:dbserver1; Database=myDB; MultiSubnetFailover=True; Integrated Security=SSPI;"
-	parseMsSqlConnectionString(connectionString)
-
-	projectsDirectoryPath := flag.String("projectsdirectorypath", "c:/repos/stash/ser", "Projects directory path")
+	projectsDirectoryPath := flag.String("projectsdirectorypath", "/tmp/services", "Projects directory path")
 
 	subDirectoryPaths, err := getAllSubDirectoryPaths(*projectsDirectoryPath)
 	if err != nil {

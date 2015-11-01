@@ -32,9 +32,6 @@ func BenchmarkConfigurationStringerUsingByteBuffer(b *testing.B) {
 func (c configuration) StringConcat() string {
 	var buffer bytes.Buffer
 
-	buffer.WriteString(c.ServiceName)
-	buffer.WriteString("\n")
-
 	buffer.WriteString("AppSettings\n")
 	for key, value := range c.AppSettings {
 		buffer.WriteString("\t")
@@ -57,14 +54,16 @@ func (c configuration) StringConcat() string {
 		buffer.WriteString("\n")
 	}
 
-	buffer.WriteString("LogTargets\n")
-	for _, logTarget := range c.LogTargets {
+	buffer.WriteString("Loggers\n")
+	for _, logger := range c.Loggers {
 		buffer.WriteString("\tName = ")
-		buffer.WriteString(logTarget.Name)
+		buffer.WriteString(logger.Name)
+		buffer.WriteString(", Level = ")
+		buffer.WriteString(logger.Level)
 		buffer.WriteString(", Facility = ")
-		buffer.WriteString(logTarget.Facility)
+		buffer.WriteString(logger.Facility)
 		buffer.WriteString(", Destination = ")
-		buffer.WriteString(logTarget.Destination)
+		buffer.WriteString(logger.Destination)
 		buffer.WriteString("\n")
 	}
 
@@ -72,9 +71,7 @@ func (c configuration) StringConcat() string {
 }
 
 func (c configuration) StringBuffer() string {
-	res := c.ServiceName + "\n"
-
-	res += "AppSettings\n"
+	res := "AppSettings\n"
 	for key, value := range c.AppSettings {
 		res += fmt.Sprintf("\t%s = %s\n", key, value)
 	}
@@ -88,12 +85,13 @@ func (c configuration) StringBuffer() string {
 			database.UsesIntegratedSecurity)
 	}
 
-	res += "LogTargets\n"
-	for _, logTarget := range c.LogTargets {
-		res += fmt.Sprintf("\tName = %s, Facility = %s, Destination = %s\n",
-			logTarget.Name,
-			logTarget.Facility,
-			logTarget.Destination)
+	res += "Loggers\n"
+	for _, logger := range c.Loggers {
+		res += fmt.Sprintf("\tName = %s, Level = %s, Facility = %s, Destination = %s\n",
+			logger.Name,
+			logger.Level,
+			logger.Facility,
+			logger.Destination)
 	}
 
 	return res
@@ -101,7 +99,6 @@ func (c configuration) StringBuffer() string {
 
 func runConfigurationStringerBenchmark(b *testing.B, stringerFuncWrapper func(*configuration) string) {
 	config := &configuration{
-		ServiceName: "MyService",
 		AppSettings: map[string]string{
 			"Key1": "Value1",
 			"Key2": "Value2",
@@ -110,9 +107,9 @@ func runConfigurationStringerBenchmark(b *testing.B, stringerFuncWrapper func(*c
 			{Type: "MSSQL", Host: "Source1", Name: "Database1", UsesIntegratedSecurity: false},
 			{Type: "EventStore", Host: "Source2", Name: "", UsesIntegratedSecurity: true},
 		},
-		LogTargets: []logTarget{
-			{Name: "Name1", Facility: "Facility1", Destination: "Destination1"},
-			{Name: "Name1", Facility: "Facility1", Destination: "Destination1"},
+		Loggers: []logger{
+			{Name: "Name1", Level: "INFO", Facility: "Facility1", Destination: "Destination1"},
+			{Name: "Name1", Level: "DEBUG", Facility: "Facility1", Destination: "Destination1"},
 		}}
 
 	// Capture result to avoid compiler optimisation kicking in
