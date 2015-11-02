@@ -64,6 +64,14 @@ func TestParseConfigXmlContent(t *testing.T) {
 	if !assertLogLoggerMatch(logLoggers[1], "*", "Trace", "", "Gelf", "") {
 		t.Errorf("Unexpected logLoggers1] %#v", logLoggers[1])
 	}
+	// RabbitServers
+	rabbitServers := config.RabbitServers.Adds
+	if len(rabbitServers) != 1 {
+		t.Errorf("Unexpected rabbitServers count, expected %d but got %d", 1, len(rabbitServers))
+	}
+	if !assertRabbitServerMatch(rabbitServers[0], "mb1", "Host=Rabbit1", "") {
+		t.Errorf("Unexpected rabbitServers[0] %#v", rabbitServers[0])
+	}
 }
 
 func TestParseConfigXmlContentForTransformationFile(t *testing.T) {
@@ -122,6 +130,11 @@ func TestParseConfigXmlContentForTransformationFile(t *testing.T) {
 	if !assertLogLoggerMatch(logLoggers[1], "*", "Debug", "", "Gelf", "") {
 		t.Errorf("Unexpected logLoggers[1] %#v", logLoggers[1])
 	}
+	// RabbitServers
+	rabbitServers := config.RabbitServers.Adds
+	if len(rabbitServers) != 0 {
+		t.Errorf("Unexpected rabbitServers count, expected %d but got %d", 0, len(rabbitServers))
+	}
 }
 
 func TestMergeConfigXmlFileContents(t *testing.T) {
@@ -177,5 +190,11 @@ func assertLogLoggerMatch(actual xmlNLogRulesLogger, name, minLevel, writeTo, ap
 		actual.MinLevel == minLevel &&
 		actual.WriteTo == writeTo &&
 		actual.AppendTo == appendTo &&
+		actual.Transform == transform
+}
+
+func assertRabbitServerMatch(actual xmlRabbitServerAdd, key, value, transform string) bool {
+	return actual.Key == key &&
+		actual.Value == value &&
 		actual.Transform == transform
 }

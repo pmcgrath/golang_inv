@@ -33,6 +33,9 @@ var configContentSample string = `<?xml version="1.0" encoding="utf-8"?>
     <add name="CCDatabase" connectionString="Data Source=db2; Initial Catalog=CCC; MultiSubnetFailover=True; Integrated Security=SSPI;" providerName="System.Data.SqlClient" />
     <add name="EventStore" connectionString="CONNECTTo=tcp://admin:ASuperDupperStrongPassword@127.0.0.1:1113" />,
   </connectionStrings>
+  <rabbitServers>
+    <add key="mb1" value="Host=Rabbit1" />
+  </rabbitServers>
   <system.web>
     <compilation debug="true" targetFramework="4.5" />
     <httpRuntime targetFramework="4.5" />

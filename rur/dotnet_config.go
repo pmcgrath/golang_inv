@@ -174,17 +174,35 @@ func parseConfigXmlFile(filePath string) (xmlConfiguration, error) {
 }
 
 func transformXmlConfig(xmlConfig xmlConfiguration) configuration {
-	// App settings
-	appSettings := make(map[string]string, len(xmlConfig.AppSettings.Adds))
+	appSettings := extractAppSettings(xmlConfig)
+	databases := extractDatabases(xmlConfig)
+	messageBrokers := extractMessageBrokers(xmlConfig)
+	loggers := extractLoggers(xmlConfig)
+
+	return configuration{
+		AppSettings:    appSettings,
+		Databases:      databases,
+		MessageBrokers: messageBrokers,
+		Loggers:        loggers,
+	}
+}
+
+func extractAppSettings(xmlConfig xmlConfiguration) map[string]string {
+	as := make(map[string]string, len(xmlConfig.AppSettings.Adds))
+
 	for _, appSetting := range xmlConfig.AppSettings.Adds {
-		appSettings[appSetting.Key] = appSetting.Value
+		as[appSetting.Key] = appSetting.Value
 	}
 
-	// Databases
-	databases := make([]database, 0)
+	return as
+}
+
+func extractDatabases(xmlConfig xmlConfiguration) []database {
+	dbs := make([]database, 0)
+
 	for _, connectionString := range xmlConfig.ConnectionStrings.Adds {
 		if strings.ToLower(connectionString.ProviderName) == "system.data.sqlclient" {
-			databases = append(databases, parseMsSqlConnectionString(connectionString.ConnectionString))
+			dbs = append(dbs, parseMsSqlConnectionString(connectionString.ConnectionString))
 			continue
 		}
 
@@ -192,11 +210,11 @@ func transformXmlConfig(xmlConfig xmlConfiguration) configuration {
 		switch strings.ToLower(connectionString.Name) {
 		case "eventstore":
 			// This only works if the name is consistent
-			databases = append(databases, parseEventStoreConnectionString(connectionString.ConnectionString))
+			dbs = append(dbs, parseEventStoreConnectionString(connectionString.ConnectionString))
 			continue
 		case "metric", "metrics":
 			// This only works if the name is consistent
-			databases = append(databases, parseInfluxDBConnectionString(connectionString.ConnectionString))
+			dbs = append(dbs, parseInfluxDBConnectionString(connectionString.ConnectionString))
 			continue
 		case "rabbitmq":
 			// This isn't a database
@@ -205,56 +223,37 @@ func transformXmlConfig(xmlConfig xmlConfiguration) configuration {
 			log.Printf("Connection string which we do not know how to process: name is [%s] and provider name is [%s]\n", connectionString.Name, connectionString.ConnectionString)
 		}
 	}
+
 	// Some database connections are configured using app settings values
 	// Keys are based on what I have observed in the files
-	lowerCasedAppSettings := make(map[string]string, len(appSettings))
-	for key, value := range appSettings {
-		key = strings.ToLower(key)
-		lowerCasedAppSettings[key] = value // Assumes no case clashes
+	// Generate a lowercase keyed map for AppSettings
+	appSettings := make(map[string]string, len(xmlConfig.AppSettings.Adds))
+	for _, appSetting := range xmlConfig.AppSettings.Adds {
+		key := strings.ToLower(appSetting.Key) // Assumes no case clashes
+		appSettings[key] = appSetting.Value
 	}
-	for key, value := range lowerCasedAppSettings {
-		// Currently only support a single redis connection - only uses "redisserver" key so can only be one
+	for key, value := range appSettings {
+		// Currently only support a single redis connection in the AppSettings - only uses "redisserver" key so can only be one
 		if key == "redisserver" {
 			db := database{Type: "Redis", Host: value}
 
-			if name, ok := lowerCasedAppSettings["redisdatabaseindex"]; ok {
+			if name, ok := appSettings["redisdatabaseindex"]; ok {
 				db.Name = name
 			}
-			if name, ok := lowerCasedAppSettings["redisdbindex"]; ok {
+			if name, ok := appSettings["redisdbindex"]; ok {
 				db.Name = name
 			}
 
-			databases = append(databases, db)
+			dbs = append(dbs, db)
 		}
 
 		// Can have multiple mongos - all have a mongohost prefix
 		if strings.HasPrefix(key, "mongohost") {
-			databases = append(databases, parseMongoDBConnectionString(value)...)
+			dbs = append(dbs, parseMongoDBConnectionString(value)...)
 		}
 	}
 
-	// Message brokers
-	messageBrokers := make([]messageBroker, 0)
-	// Some RabbitMQ connection information is stored in the conection strings section
-	for _, connectionString := range xmlConfig.ConnectionStrings.Adds {
-		if strings.ToLower(connectionString.Name) == "rabbitmq" {
-			messageBrokers = append(messageBrokers, parseRabbitMQConnectionString(connectionString.ConnectionString))
-		}
-	}
-	// Some are in a custome RabbitServers section
-	for _, rabbitServer := range xmlConfig.RabbitServers.Adds {
-		messageBrokers = append(messageBrokers, parseRabbitMQConnectionString(rabbitServer.Value))
-	}
-
-	// Loggers
-	loggers := transformNLogXml(xmlConfig.NLog)
-
-	return configuration{
-		AppSettings:    appSettings,
-		Databases:      databases,
-		MessageBrokers: messageBrokers,
-		Loggers:        loggers,
-	}
+	return dbs
 }
 
 func parseMsSqlConnectionString(value string) database {
@@ -347,7 +346,7 @@ func parseMongoDBConnectionString(value string) []database {
 	dbs := make([]database, 0)
 
 	// For the offical connection strings, see https://docs.mongodb.org/manual/reference/connection-string/
-	// Format is protocol://username:password@hosts/options i.e. mongodb://ted:password@mongo.company.com/?safe=true
+	// Format is protocol://username:password@hosts/dbname/?options i.e. mongodb://ted:password@mongo.company.com/?safe=true
 	// Strip prefix
 	intermediateValue := value[len("mongodb://"):]
 	// Strip credentials if present - these are optional
@@ -383,6 +382,24 @@ func parseMongoDBConnectionString(value string) []database {
 	return dbs
 }
 
+func extractMessageBrokers(xmlConfig xmlConfiguration) []messageBroker {
+	mbs := make([]messageBroker, 0)
+
+	// Some RabbitMQ connection information is stored in the conection strings section
+	for _, connectionString := range xmlConfig.ConnectionStrings.Adds {
+		if strings.ToLower(connectionString.Name) == "rabbitmq" {
+			mbs = append(mbs, parseRabbitMQConnectionString(connectionString.ConnectionString))
+		}
+	}
+
+	// Some are in a custom RabbitServers section
+	for _, rabbitServer := range xmlConfig.RabbitServers.Adds {
+		mbs = append(mbs, parseRabbitMQConnectionString(rabbitServer.Value))
+	}
+
+	return mbs
+}
+
 func parseRabbitMQConnectionString(value string) messageBroker {
 	mb := messageBroker{Type: "RabbitMQ", ConnectionString: value}
 
@@ -406,33 +423,34 @@ func parseRabbitMQConnectionString(value string) messageBroker {
 	return mb
 }
 
-func transformNLogXml(nlog xmlNLog) []logger {
-	loggers := make([]logger, 0)
-	for _, nlogLogger := range nlog.Rules.Loggers {
-		logger := logger{
+func extractLoggers(xmlConfig xmlConfiguration) []logger {
+	ls := make([]logger, 0)
+
+	for _, nlogLogger := range xmlConfig.NLog.Rules.Loggers {
+		l := logger{
 			Name:  nlogLogger.Name,
 			Level: nlogLogger.MinLevel,
 		}
 
-		logger.Target = nlogLogger.WriteTo
+		l.Target = nlogLogger.WriteTo
 		if nlogLogger.AppendTo != "" {
-			logger.Target = nlogLogger.AppendTo
+			l.Target = nlogLogger.AppendTo
 		}
 
-		for _, nlogTarget := range nlog.Targets.Targets {
-			if nlogTarget.Name == logger.Target {
-				logger.Facility = nlogTarget.Facility
-				logger.Destination = nlogTarget.GelfServer
+		for _, nlogTarget := range xmlConfig.NLog.Targets.Targets {
+			if nlogTarget.Name == l.Target {
+				l.Facility = nlogTarget.Facility
+				l.Destination = nlogTarget.GelfServer
 				if nlogTarget.Address != "" {
 					// Case of local udp target
-					logger.Destination = nlogTarget.Address
+					l.Destination = nlogTarget.Address
 				}
 				break
 			}
 		}
 
-		loggers = append(loggers, logger)
+		ls = append(ls, l)
 	}
 
-	return loggers
+	return ls
 }

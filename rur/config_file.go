@@ -38,9 +38,9 @@ type xmlNLog struct {
 }
 
 type xmlRabbitServers struct {
-	XMLName   xml.Name           `xml:"rabbitServers"`
-	Transform string             `xml:"Transform,attr"`
-	Adds      []xmlAppSettingAdd `xml:"add"`
+	XMLName   xml.Name             `xml:"rabbitServers"`
+	Transform string               `xml:"Transform,attr"`
+	Adds      []xmlRabbitServerAdd `xml:"add"`
 }
 
 type xmlAppSettingAdd struct {

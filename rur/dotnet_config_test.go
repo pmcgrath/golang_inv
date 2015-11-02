@@ -162,52 +162,54 @@ func TestParseMongoDBConnectionString(t *testing.T) {
 	}
 }
 
-func TestTransformNLogXml(t *testing.T) {
-	source := xmlNLog{
-		Targets: xmlNLogTargets{
-			Targets: []xmlNLogTargetsTarget{
-				{
-					Name:    "udpLogger",
-					Type:    "NlogViewer",
-					Address: "udp://localhost:7071",
-				},
-				{
-					Name:       "gelfLogger",
-					Type:       "Gelf",
-					Facility:   "super_service",
-					GelfServer: "log.company.com",
-					Port:       "12201",
-				},
-				{
-					Name:       "orphanedGelfLogger",
-					Type:       "Gelf",
-					Facility:   "super_service",
-					GelfServer: "old.log.company.com",
-					Port:       "12201",
+func TestExtractLoggers(t *testing.T) {
+	source := xmlConfiguration{
+		NLog: xmlNLog{
+			Targets: xmlNLogTargets{
+				Targets: []xmlNLogTargetsTarget{
+					{
+						Name:    "udpLogger",
+						Type:    "NlogViewer",
+						Address: "udp://localhost:7071",
+					},
+					{
+						Name:       "gelfLogger",
+						Type:       "Gelf",
+						Facility:   "super_service",
+						GelfServer: "log.company.com",
+						Port:       "12201",
+					},
+					{
+						Name:       "orphanedGelfLogger",
+						Type:       "Gelf",
+						Facility:   "super_service",
+						GelfServer: "old.log.company.com",
+						Port:       "12201",
+					},
 				},
 			},
-		},
-		Rules: xmlNLogRules{
-			Loggers: []xmlNLogRulesLogger{
-				{
-					Name:     "*",
-					MinLevel: "Trace",
-					WriteTo:  "udpLogger",
-				},
-				{
-					Name:     "*",
-					MinLevel: "Trace",
-					AppendTo: "gelfLogger",
+			Rules: xmlNLogRules{
+				Loggers: []xmlNLogRulesLogger{
+					{
+						Name:     "*",
+						MinLevel: "Trace",
+						WriteTo:  "udpLogger",
+					},
+					{
+						Name:     "*",
+						MinLevel: "Trace",
+						AppendTo: "gelfLogger",
+					},
 				},
 			},
 		},
 	}
 
-	logTargets := transformNLogXml(source)
+	loggers := extractLoggers(source)
 
-	if len(logTargets) != 2 {
-		t.Errorf("Unexpected log targets count, expected : 2 actual : %d", len(logTargets))
+	if len(loggers) != 2 {
+		t.Errorf("Unexpected loggers count, expected : 2 actual : %d", len(loggers))
 	}
 
-	t.Logf("---> %#v\n\n", logTargets)
+	t.Logf("---> %#v\n\n", loggers)
 }
