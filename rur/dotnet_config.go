@@ -24,9 +24,10 @@ func (s serviceConfiguration) String() string {
 }
 
 type configuration struct {
-	AppSettings map[string]string
-	Databases   []database
-	Loggers     []logger
+	AppSettings    map[string]string
+	Databases      []database
+	MessageBrokers []messageBroker
+	Loggers        []logger
 }
 
 func (c configuration) String() string {
@@ -38,6 +39,11 @@ func (c configuration) String() string {
 	res += "Databases\n"
 	for _, database := range c.Databases {
 		res += fmt.Sprintf("\t%s\n", database)
+	}
+
+	res += "MessageBrokers\n"
+	for _, messageBroker := range c.MessageBrokers {
+		res += fmt.Sprintf("\t%s\n", messageBroker)
 	}
 
 	res += "Loggers\n"
@@ -65,6 +71,19 @@ func (d database) String() string {
 		d.Name,
 		d.UsesIntegratedSecurity,
 		d.ConnectionString)
+}
+
+type messageBroker struct {
+	Type             string
+	Host             string
+	ConnectionString string
+}
+
+func (mb messageBroker) String() string {
+	return fmt.Sprintf("Type = %s, Host = %s, ConnectionString = %s",
+		mb.Type,
+		mb.Host,
+		mb.ConnectionString)
 }
 
 type logger struct {
@@ -129,8 +148,9 @@ func parseForService(directoryPath string) (serviceConfiguration, error) {
 		mergedXmlConfig := mergeConfigXmlFileContents(baseXmlConfig, xmlConfig)
 		envConfig := transformXmlConfig(mergedXmlConfig)
 
-		// Add entry for file - assuming no clashes for file name casing
+		// Add entry for env - assuming no clashes for name casing
 		env := strings.ToLower(configFileName)
+		env = env[strings.Index(env, ".")+1:]
 		env = env[0:strings.Index(env, ".")]
 		config.Environments[env] = envConfig
 	}
@@ -154,11 +174,13 @@ func parseConfigXmlFile(filePath string) (xmlConfiguration, error) {
 }
 
 func transformXmlConfig(xmlConfig xmlConfiguration) configuration {
+	// App settings
 	appSettings := make(map[string]string, len(xmlConfig.AppSettings.Adds))
 	for _, appSetting := range xmlConfig.AppSettings.Adds {
 		appSettings[appSetting.Key] = appSetting.Value
 	}
 
+	// Databases
 	databases := make([]database, 0)
 	for _, connectionString := range xmlConfig.ConnectionStrings.Adds {
 		if strings.ToLower(connectionString.ProviderName) == "system.data.sqlclient" {
@@ -183,13 +205,55 @@ func transformXmlConfig(xmlConfig xmlConfiguration) configuration {
 			log.Printf("Connection string which we do not know how to process: name is [%s] and provider name is [%s]\n", connectionString.Name, connectionString.ConnectionString)
 		}
 	}
+	// Some database connections are configured using app settings values
+	// Keys are based on what I have observed in the files
+	lowerCasedAppSettings := make(map[string]string, len(appSettings))
+	for key, value := range appSettings {
+		key = strings.ToLower(key)
+		lowerCasedAppSettings[key] = value // Assumes no case clashes
+	}
+	for key, value := range lowerCasedAppSettings {
+		// Currently only support a single redis connection - only uses "redisserver" key so can only be one
+		if key == "redisserver" {
+			db := database{Type: "Redis", Host: value}
 
+			if name, ok := lowerCasedAppSettings["redisdatabaseindex"]; ok {
+				db.Name = name
+			}
+			if name, ok := lowerCasedAppSettings["redisdbindex"]; ok {
+				db.Name = name
+			}
+
+			databases = append(databases, db)
+		}
+
+		// Can have multiple mongos - all have a mongohost prefix
+		if strings.HasPrefix(key, "mongohost") {
+			databases = append(databases, parseMongoDBConnectionString(value)...)
+		}
+	}
+
+	// Message brokers
+	messageBrokers := make([]messageBroker, 0)
+	// Some RabbitMQ connection information is stored in the conection strings section
+	for _, connectionString := range xmlConfig.ConnectionStrings.Adds {
+		if strings.ToLower(connectionString.Name) == "rabbitmq" {
+			messageBrokers = append(messageBrokers, parseRabbitMQConnectionString(connectionString.ConnectionString))
+		}
+	}
+	// Some are in a custome RabbitServers section
+	for _, rabbitServer := range xmlConfig.RabbitServers.Adds {
+		messageBrokers = append(messageBrokers, parseRabbitMQConnectionString(rabbitServer.Value))
+	}
+
+	// Loggers
 	loggers := transformNLogXml(xmlConfig.NLog)
 
 	return configuration{
-		AppSettings: appSettings,
-		Databases:   databases,
-		Loggers:     loggers,
+		AppSettings:    appSettings,
+		Databases:      databases,
+		MessageBrokers: messageBrokers,
+		Loggers:        loggers,
 	}
 }
 
@@ -270,14 +334,76 @@ func parseInfluxDBConnectionString(value string) database {
 		case "host":
 			db.Host = value
 		case "port":
-			port, _ := strconv.Atoi(value)
-			db.Port = port
+			db.Port, _ = strconv.Atoi(value)
 		case "database":
 			db.Name = value
 		}
 	}
 
 	return db
+}
+
+func parseMongoDBConnectionString(value string) []database {
+	dbs := make([]database, 0)
+
+	// For the offical connection strings, see https://docs.mongodb.org/manual/reference/connection-string/
+	// Format is protocol://username:password@hosts/options i.e. mongodb://ted:password@mongo.company.com/?safe=true
+	// Strip prefix
+	intermediateValue := value[len("mongodb://"):]
+	// Strip credentials if present - these are optional
+	if strings.Index(intermediateValue, "@") > -1 {
+		intermediateValue = intermediateValue[strings.Index(intermediateValue, "@")+1:]
+	}
+
+	// Try to get a database name - optional
+	name := ""
+	slashIndex := strings.Index(intermediateValue, "/")
+	queryStringStartIndex := strings.Index(intermediateValue, "?")
+	if queryStringStartIndex > slashIndex+1 {
+		name = intermediateValue[slashIndex+1 : queryStringStartIndex]
+	}
+
+	// Add an entry for each host
+	if slashIndex > 0 {
+		// Cater for multiple hosts
+		instances := strings.Split(intermediateValue[0:slashIndex], ",")
+		for _, instance := range instances {
+			db := database{Type: "MongoDB", Name: name, ConnectionString: value}
+
+			hostAndPort := strings.Split(instance, ":")
+			db.Host = hostAndPort[0]
+			if len(hostAndPort) > 1 {
+				db.Port, _ = strconv.Atoi(hostAndPort[1])
+			}
+
+			dbs = append(dbs, db)
+		}
+	}
+
+	return dbs
+}
+
+func parseRabbitMQConnectionString(value string) messageBroker {
+	mb := messageBroker{Type: "RabbitMQ", ConnectionString: value}
+
+	attributes := strings.Split(value, ";")
+	for _, attribute := range attributes {
+		// Cater for trailing ; in which case we will have an empty attribute
+		if strings.TrimSpace(attribute) == "" {
+			continue
+		}
+
+		attributeParts := strings.Split(attribute, "=")
+		key := strings.TrimSpace(strings.ToLower(attributeParts[0]))
+		value := strings.TrimSpace(attributeParts[1])
+
+		switch key {
+		case "host":
+			mb.Host = value
+		}
+	}
+
+	return mb
 }
 
 func transformNLogXml(nlog xmlNLog) []logger {

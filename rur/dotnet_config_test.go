@@ -109,6 +109,59 @@ func TestParseInfluxDBConnectionString(t *testing.T) {
 	}
 }
 
+func TestParseMongoDBConnectionString(t *testing.T) {
+	for _, testCase := range []struct {
+		ConnectionString string
+		ExpectedCount    int
+		ExpectedHost1    string
+		ExpectedPort1    int
+		ExpectedName     string
+		ExpectedHost2    string
+		ExpectedPort2    int
+	}{
+		{"mongodb://user:password@mongo1.company.com:2100,mongo2/db1?safe=true", 2, "mongo1.company.com", 2100, "db1", "mongo2", 0},
+		{"mongodb://mongo1.company.com:2,mongo2/?safe=true", 2, "mongo1.company.com", 2, "", "mongo2", 0},
+	} {
+		dbs := parseMongoDBConnectionString(testCase.ConnectionString)
+
+		if len(dbs) != testCase.ExpectedCount {
+			t.Errorf("Unexpected db count, expected : %s actual : %s", testCase.ExpectedCount, len(dbs))
+		}
+		if dbs[0].Host != testCase.ExpectedHost1 {
+			t.Errorf("Unexpected host1, expected : [%s] actual : [%s]", testCase.ExpectedHost1, dbs[0].Host)
+		}
+		if dbs[0].Port != testCase.ExpectedPort1 {
+			t.Errorf("Unexpected port1, expected : %d actual : %d", testCase.ExpectedPort1, dbs[0].Port)
+		}
+		if dbs[0].Name != testCase.ExpectedName {
+			t.Errorf("Unexpected name1, expected : %s actual : %s", testCase.ExpectedName, dbs[0].Name)
+		}
+		if dbs[0].UsesIntegratedSecurity {
+			t.Errorf("Unexpected uses integrated security1, expected false but got true")
+		}
+		if dbs[0].ConnectionString != testCase.ConnectionString {
+			t.Errorf("Unexpected connection string, expected : %s actual : %s", testCase.ConnectionString, dbs[0].ConnectionString)
+		}
+		if len(dbs) > 1 {
+			if dbs[1].Host != testCase.ExpectedHost2 {
+				t.Errorf("Unexpected host1, expected : [%s] actual : [%s]", testCase.ExpectedHost2, dbs[1].Host)
+			}
+			if dbs[1].Port != testCase.ExpectedPort2 {
+				t.Errorf("Unexpected port1, expected : %d actual : %d", testCase.ExpectedPort2, dbs[1].Port)
+			}
+			if dbs[1].Name != testCase.ExpectedName {
+				t.Errorf("Unexpected name1, expected : %s actual : %s", testCase.ExpectedName, dbs[1].Name)
+			}
+			if dbs[1].UsesIntegratedSecurity {
+				t.Errorf("Unexpected uses integrated security1, expected false but got true")
+			}
+			if dbs[1].ConnectionString != testCase.ConnectionString {
+				t.Errorf("Unexpected connection string, expected : %s actual : %s", testCase.ConnectionString, dbs[0].ConnectionString)
+			}
+		}
+	}
+}
+
 func TestTransformNLogXml(t *testing.T) {
 	source := xmlNLog{
 		Targets: xmlNLogTargets{

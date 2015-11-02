@@ -15,6 +15,7 @@ type xmlConfiguration struct {
 	AppSettings       xmlAppSettings       `xml:"appSettings"`
 	ConnectionStrings xmlConnectionStrings `xml:"connectionStrings"`
 	NLog              xmlNLog              `xml:"nlog"`
+	RabbitServers     xmlRabbitServers     `xml:"rabbitServers"`
 }
 
 type xmlAppSettings struct {
@@ -34,6 +35,12 @@ type xmlNLog struct {
 	Transform string         `xml:"Transform,attr"`
 	Targets   xmlNLogTargets `xml:"targets"`
 	Rules     xmlNLogRules   `xml:"rules"`
+}
+
+type xmlRabbitServers struct {
+	XMLName   xml.Name           `xml:"rabbitServers"`
+	Transform string             `xml:"Transform,attr"`
+	Adds      []xmlAppSettingAdd `xml:"add"`
 }
 
 type xmlAppSettingAdd struct {
@@ -82,6 +89,13 @@ type xmlNLogRulesLogger struct {
 	MinLevel  string   `xml:"minLevel,attr"`
 	WriteTo   string   `xml:"writeTo,attr"`
 	AppendTo  string   `xml:"appendTo,attr"`
+	Transform string   `xml:"Transform,attr"`
+}
+
+type xmlRabbitServerAdd struct {
+	XMLName   xml.Name `xml:"add"`
+	Key       string   `xml:"key,attr"`
+	Value     string   `xml:"value,attr"`
 	Transform string   `xml:"Transform,attr"`
 }
 
@@ -209,6 +223,24 @@ func mergeConfigXmlFileContents(base, update xmlConfiguration) xmlConfiguration 
 				}
 			}
 
+		}
+	}
+
+	// RabbitServers
+	if update.RabbitServers.Transform == "Replace" {
+		merged.RabbitServers = update.RabbitServers
+	} else {
+		// Deal with Inserts and SetAttributes
+		for _, updateItem := range update.RabbitServers.Adds {
+			if updateItem.Transform == "Insert" {
+				merged.RabbitServers.Adds = append(merged.RabbitServers.Adds, updateItem)
+			} else if updateItem.Transform == "SetAttributes" {
+				for index, mergedItem := range merged.RabbitServers.Adds {
+					if mergedItem.Key == updateItem.Key {
+						merged.RabbitServers.Adds[index].Value = updateItem.Value
+					}
+				}
+			}
 		}
 	}
 
