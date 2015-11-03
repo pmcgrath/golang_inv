@@ -24,11 +24,12 @@ type gitCmdResults []gitCmdResult
 
 // Provider interface and connection attributes
 type provider interface {
-	getRepos(string) (repositoryDetails, error)
+	getRepositories(string) (repositoryDetails, error)
 }
 
 type providerConnectionAttributes struct {
 	URL      string
+	ApiKey   string
 	Username string
 	Password string
 }

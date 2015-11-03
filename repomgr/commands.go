@@ -298,8 +298,8 @@ func getProviderRepos(providerName, url, userName, password, parentName string) 
 		return nil, err
 	}
 
-	logDebugf("About to get repos for provider [%s]\n", providerName)
-	repos, err := provider.getRepos(parentName)
+	logDebugf("About to get repositories for provider [%s]\n", providerName)
+	repos, err := provider.getRepositories(parentName)
 	if err != nil {
 		return nil, err
 	}

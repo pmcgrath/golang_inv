@@ -22,7 +22,7 @@ func newGitHubProvider(connAttrs providerConnectionAttributes) gitHub {
 	return gitHub{connAttrs: connAttrs}
 }
 
-func (p gitHub) getRepos(parentName string) (repos repositoryDetails, err error) {
+func (p gitHub) getRepositories(parentName string) (repos repositoryDetails, err error) {
 	timeoutInMS := 15000
 
 	timeout := time.Duration(time.Duration(timeoutInMS) * time.Millisecond)
