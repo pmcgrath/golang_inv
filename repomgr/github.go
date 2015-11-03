@@ -40,10 +40,13 @@ func (p gitHub) getRepos(parentName string) (repos repositoryDetails, err error)
 
 	logDebugf("About to make github api call on [%s]\n", url)
 	resp, err := client.Do(req)
+	if resp != nil {
+		// See http://devs.cloudimmunity.com/gotchas-and-common-mistakes-in-go-golang/index.html#close_http_resp_body
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("Non 200 status code for [%s], code was %d", url, resp.StatusCode)
